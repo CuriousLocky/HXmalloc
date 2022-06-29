@@ -6,7 +6,7 @@ typedef struct{
     uint64_t content;
 }Block8;
 
-#define BLOCK8_CHUNK_SIZE       2048UL
+#define BLOCK8_SUPERBLOCK_SIZE       2048UL
 #define BLOCK8_CLEANING_FLAG    1UL
 #define BLOCK8_CLEANING_TARGET  120UL
 
