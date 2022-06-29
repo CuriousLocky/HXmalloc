@@ -2,10 +2,16 @@
 #include <x86intrin.h>
 #include "HXmalloc8.h"
 #include "NonblockingStack.h"
+#include "MemoryPool.h"
 
 thread_local uint64_t *localSuperBlock8 = NULL;
 volatile NonBlockingStackBlock readySuperBlock8Stack = {.block_16b=0};
 volatile NonBlockingStackBlock cleanSuperBlock8Stack = {.block_16b=0};
+
+// XXX: thread local chunk may or maynot cause low memory utility
+// since it does aquires more memory chunks, but lazy allocation does compensate for it
+thread_local uint8_t *chunk8 = NULL;
+thread_local uint32_t chunk8Usage = 0;
 
 static void Block8SetNext(Block8 *prevBlock, Block8 *nextBlock){
     *((Block8 **)prevBlock) = nextBlock;
@@ -13,6 +19,12 @@ static void Block8SetNext(Block8 *prevBlock, Block8 *nextBlock){
 
 static Block8 *Block8GetNext(Block8 *prevBlock){
     return (Block8*)(*((Block8**)prevBlock));
+}
+
+void initBlock8(){
+    chunk8 = chunkRequest();
+    chunk8Usage = BLOCK8_SUPERBLOCK_SIZE;
+    localSuperBlock8 = (uint64_t *)chunk8;
 }
 
 void HXfree8(Block8 *block){
@@ -67,8 +79,18 @@ static void getNewLocalSuperBlock(){
         localSuperBlock8 = newLocakSuperBlock;
         return;
     }
-    // get new superBlock from memory pool
-    // TODO: implement new superBlock creation
+    // get new superBlock from chunk
+    if(chunk8Usage < CHUNK_SIZE){
+        localSuperBlock8 = (uint64_t *)(chunk8 + chunk8Usage);
+        chunk8Usage += BLOCK8_SUPERBLOCK_SIZE;
+        return;
+    }
+    // chunk is empty, request a new chunk
+    // XXX: chunks are never returned to OS
+    chunk8 = chunkRequest();
+    chunk8Usage = BLOCK8_SUPERBLOCK_SIZE;
+    localSuperBlock8 = (uint64_t *)chunk8;
+    return;
 }
 
 Block8 *FindVictim8(){

@@ -11,3 +11,5 @@ typedef struct{
 #define BLOCK8_CLEANING_TARGET  120UL
 
 void HXfree8(Block8 *block);
+Block8 *FindVictim8();
+void initBlock8();
