@@ -96,9 +96,11 @@ void free(size_t size) __attribute((week, alias("hxfree")));
 __attribute__((visibility("default")))
 void hxfree(void *ptr){
     if(ptr == NULL){return NULL;}
-    if((uint64_t)ptr % 4096 == 0){
-        // big block
-        // TODO: implement deallocation
+    BlockHeader *block = getBlockHeader(ptr);
+    BlockHeader header = *block;
+    uint64_t size = getSize(header);
+    if(size <= 64){
+        // small block
+        freeSmallBlock(block, header);
     }
-    
 }
