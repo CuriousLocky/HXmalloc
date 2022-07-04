@@ -18,7 +18,7 @@ thread_local uint64_t chunk{{blockSize}}Usage = 0;
 static thread_local unsigned int managerPageUsage = 0; 
 
 void initBlock{{blockSize}}(){
-    chunk{{blockSize}} = chunkRequest();
+    chunk{{blockSize}} = chunkRequest(CHUNKSIZE);
     chunk{{blockSize}}Usage = 4096 + SUPERBLOCKSIZE;
     localSuperBlock{{blockSize}} = chunk{{blockSize}} + (4096 / sizeof(uint64_t)) - 1;
     localSuperBlock{{blockSize}}BitMap = chunk{{blockSize}};
@@ -67,7 +67,7 @@ static void getNewLocalSuperBlock(){
         return;
     }
     // get new superBlock from chunk
-    if(chunk{{blockSize}}Usage < CHUNK_SIZE){
+    if(chunk{{blockSize}}Usage < CHUNKSIZE){
         localSuperBlock{{blockSize}} = chunk{{blockSize}} + chunk{{blockSize}}Usage/sizeof(uint64_t);
         localSuperBlock{{blockSize}}BitMap = chunk{{blockSize}} + 8 * managerPageUsage / 512 + managerPageUsage / 512;
         chunk{{blockSize}}Usage += SUPERBLOCKSIZE;
