@@ -10,7 +10,7 @@ typedef uint64_t BlockHeader;
 #define SIZEMASK            0xffc0000000000000UL
 
 static inline BlockHeader *getBlockHeader(void *ptr){
-    uint64_t *ptr64 = ptr;
+    uint64_t *ptr64 = (uint64_t*)ptr;
     return (BlockHeader*)(ptr64-1);
 }
 
