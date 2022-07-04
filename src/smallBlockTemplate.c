@@ -15,14 +15,14 @@ volatile NonBlockingStackBlock cleanSuperBlock{{blockSize}}Stack = {.block_16b=0
 
 thread_local uint64_t *chunk{{blockSize}} = NULL;
 thread_local uint64_t chunk{{blockSize}}Usage = 0;
-thread_local unsigned int managerPageUsage = 0; 
+static thread_local unsigned int managerPageUsage = 0; 
 
 void initBlock{{blockSize}}(){
     chunk{{blockSize}} = chunkRequest();
     chunk{{blockSize}}Usage = 4096 + SUPERBLOCKSIZE;
     localSuperBlock{{blockSize}} = chunk{{blockSize}} + (4096 / sizeof(uint64_t)) - 1;
     localSuperBlock{{blockSize}}BitMap = chunk{{blockSize}};
-    managerPageUsage = sizeof(uint64_t);
+    managerPageUsage = 1;
 }
 
 void freeBlock{{blockSize}}(BlockHeader *block, BlockHeader header){
@@ -69,9 +69,9 @@ static void getNewLocalSuperBlock(){
     // get new superBlock from chunk
     if(chunk{{blockSize}}Usage < CHUNK_SIZE){
         localSuperBlock{{blockSize}} = chunk{{blockSize}} + chunk{{blockSize}}Usage/sizeof(uint64_t);
-        localSuperBlock{{blockSize}}BitMap = chunk{{blockSize}} + managerPageUsage/sizeof(uint64_t);
+        localSuperBlock{{blockSize}}BitMap = chunk{{blockSize}} + 8 * managerPageUsage / 512 + managerPageUsage / 512;
         chunk{{blockSize}}Usage += SUPERBLOCKSIZE;
-        managerPageUsage += sizeof(uint64_t);
+        managerPageUsage += 1;
     }
     // chunk is empty, request a new chunk
     initBlock{{blockSize}}();
