@@ -1,6 +1,6 @@
 #include <threads.h>
 #include <x86intrin.h>
-#include "block{{blockSize}}.h"
+#include "smallBlock{{blockSize}}.h"
 #include "NonblockingStack.h"
 #include "MemoryPool.h"
 
