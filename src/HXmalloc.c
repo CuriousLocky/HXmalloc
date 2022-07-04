@@ -1,5 +1,5 @@
 #include "HXmalloc.h"
-#include "block16.h"
+#include "smallBlock.h"
 
 __attribute__((visibility("default")))
 void *malloc(size_t size) __attribute((week, alias("hxmalloc")));
@@ -7,24 +7,18 @@ void *malloc(size_t size) __attribute((week, alias("hxmalloc")));
 __attribute__((visibility("default")))
 void *hxmalloc(size_t size){
     if(size == 0){return NULL;}
-    if(size < 48){
-        // tiny block
-        // TODO: implement tiny block handler functions
+    if(size + 8 < 64){
+        // small block
+        // align to 16
         size = (size >> 4) + ((size & 15)!=0);
-        switch (size){
-            case 1:
-                return findVictim16();
-            default:
-                break;
-        }
-        return NULL;
+        return findSmallVictim(size);
     }
     if(size >= 4080){
         // big block
         // TODO: implement big block handler functions
         return NULL;
     }
-    // TODO: implement small block handler functions
+    // TODO: implement middle block handler functions
     size = (size >> 6) + ((size & 63)!=0);
     switch(size){
         case 1:
