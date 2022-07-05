@@ -1,4 +1,5 @@
 #include "smallBlock.h"
+{{smallBlockHeaders}}
 
 void initSmallBlock(){
 {{initBlock}}

@@ -26,18 +26,18 @@ for blockSize in smallBlockSizes:
     with open(includeFileName, "w") as outputFile:
         outputFile.write(smallBlockHeaderSpecificTemplate.render(blockSize = blockSize))
     
-# generate small block header
-smallBlockHeaderTemplate = ""
-with open("templates/smallBlockTemplate.h") as templateFile:
-    smallBlockHeaderTemplate = Template(templateFile.read())
-smallBlockHeaderFileName = genIncludePath + "smallBlock.h"
-smallBlockHeaders = []
-for blockSize in smallBlockSizes:
-    smallBlockHeaders.append("#include \"smallBlock{blockSize}.h\"".format(blockSize = blockSize))
-with open(smallBlockHeaderFileName, "w") as outputFile:
-    outputFile.write(smallBlockHeaderTemplate.render(
-        smallBlockHeaders = "\n".join(smallBlockHeaders)
-    ))
+# # generate small block header
+# smallBlockHeaderTemplate = ""
+# with open("templates/smallBlockTemplate.h") as templateFile:
+#     smallBlockHeaderTemplate = Template(templateFile.read())
+# smallBlockHeaderFileName = genIncludePath + "smallBlock.h"
+# smallBlockHeaders = []
+# for blockSize in smallBlockSizes:
+#     smallBlockHeaders.append("#include \"smallBlock{blockSize}.h\"".format(blockSize = blockSize))
+# with open(smallBlockHeaderFileName, "w") as outputFile:
+#     outputFile.write(smallBlockHeaderTemplate.render(
+#         smallBlockHeaders = "\n".join(smallBlockHeaders)
+#     ))
 
 
 # generate small block source file
@@ -49,7 +49,9 @@ with open(smallBlockSrcTemplateFileName) as templateFile:
 smallBlockInitFunctions = []
 findVictimFunctions = []
 freeBlockFunctions = []
+smallBlockHeaders = []
 for blockSize in smallBlockSizes:
+    smallBlockHeaders.append("#include \"smallBlock{blockSize}.h\"".format(blockSize = blockSize))
     smallBlockInitFunctions.append("    initBlock{blockSize}();".format(blockSize = blockSize))
     findVictimFunctions.append("        findVictim{blockSize}".format(blockSize = blockSize))
     freeBlockFunctions.append("        freeBlock{blockSize}".format(blockSize = blockSize))
@@ -58,5 +60,6 @@ with open(smallBlockSrcFileName, "w") as outputFile:
         initBlock="\n".join(smallBlockInitFunctions), 
         blockSizeNumber=len(smallBlockSizes), 
         findVictimFunctions = ",\n".join(findVictimFunctions),
-        freeBlockFunctions = ",\n".join(freeBlockFunctions)
+        freeBlockFunctions = ",\n".join(freeBlockFunctions),
+        smallBlockHeaders = "\n".join(smallBlockHeaders)
     ))
