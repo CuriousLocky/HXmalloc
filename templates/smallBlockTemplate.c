@@ -10,7 +10,7 @@ BlockHeader *findSmallVictim(uint64_t size){
     BlockHeader *(*findVictimFunctions[{{blockSizeNumber}}])() = {
 {{findVictimFunctions}}
     };
-    return findVictimFunctions[size];
+    return (*findVictimFunctions[size])();
 }
     
 void freeSmallBlock(BlockHeader *block, BlockHeader header){

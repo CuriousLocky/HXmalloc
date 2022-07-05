@@ -2,7 +2,7 @@
 #include "smallBlock.h"
 
 __attribute__((visibility("default")))
-void *malloc(size_t size) __attribute((week, alias("hxmalloc")));
+void *malloc(size_t size) __attribute((weak, alias("hxmalloc")));
 
 __attribute__((visibility("default")))
 void *hxmalloc(size_t size){
@@ -91,11 +91,11 @@ void *hxmalloc(size_t size){
 }
 
 __attribute__((visibility("default")))
-void free(size_t size) __attribute((week, alias("hxfree")));
+void free(void *ptr) __attribute((weak, alias("hxfree")));
 
 __attribute__((visibility("default")))
 void hxfree(void *ptr){
-    if(ptr == NULL){return NULL;}
+    if(ptr == NULL){return;}
     BlockHeader *block = getBlockHeader(ptr);
     BlockHeader header = *block;
     uint64_t size = getSize(header);

@@ -59,9 +59,10 @@ static void getNewLocalSuperBlock(){
     // check clean stack
     uint64_t *randomCleanBlock = pop_nonblocking_stack(cleanSuperBlock{{blockSize}}Stack, superBlockGetNext);
     if(randomCleanBlock != NULL){
-        BlockHeader *header = randomCleanBlock - 1;
+        BlockHeader *block = randomCleanBlock - 1;
+        BlockHeader header = *block;
         uint64_t *superBlockBitMap = getSuperBlockBitMap(header);
-        uint64_t *superBlock = (uint64_t*)header - (getIndex(header)) * 2;
+        uint64_t *superBlock = (uint64_t*)block - (getIndex(header)) * 2;
         localSuperBlock{{blockSize}} = superBlock;
         localSuperBlock{{blockSize}}BitMap = superBlockBitMap;
         return;
