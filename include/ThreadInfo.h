@@ -11,4 +11,4 @@ typedef struct{
 
 extern ThreadInfo *threadInfoArray;
 
-__thread ThreadInfo *localThreadInfo;
+extern __thread ThreadInfo *localThreadInfo;

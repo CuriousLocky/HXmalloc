@@ -22,6 +22,7 @@ $(GEN_OBJ_DIR):
 	@mkdir -p $@
 
 HXmalloc.so: $(OBJ) $(GEN_OBJ)
+	@$(CXX) $(CFLAGS) -DRUNTIME -shared $(OBJ) $(GEN_OBJ) -o $@ -lpthread -ldl
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@$(CXX) $(CFLAGS) -c $< -o $@
