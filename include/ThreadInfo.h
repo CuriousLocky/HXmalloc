@@ -1,3 +1,4 @@
+#pragma once
 #include <stddef.h>
 #include <stdint.h>
 #include "NonblockingStack.h"
@@ -6,7 +7,6 @@
 typedef struct{
     unsigned int threadID;
     SmallBlockThreadInfo smallBlockInfo;
-
 }ThreadInfo;
 
 extern ThreadInfo *threadInfoArray;
