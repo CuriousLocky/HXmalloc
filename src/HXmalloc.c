@@ -7,11 +7,12 @@ void *malloc(size_t size) __attribute((weak, alias("hxmalloc")));
 __attribute__((visibility("default")))
 void *hxmalloc(size_t size){
     if(size == 0){return NULL;}
-    if(size + 8 < 64){
+    if(size + 8 <= 64){
         // small block
         // align to 16
-        size = (size >> 4) + ((size & 15)!=0);
-        return findSmallVictim(size);
+        size += 8;
+        size = align(size, 16);
+        return findSmallVictim(size) + 1;
     }
     if(size >= 4080){
         // big block
