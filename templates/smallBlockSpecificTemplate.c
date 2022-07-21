@@ -6,13 +6,16 @@
 #define SUPERBLOCKSIZE ({{blockSize}} * 64)
 #define CHUNKSIZE ({{chunkSize}})
 
+static void getNewLocalSuperBlock();
+static BlockHeader *findLocalVictim();
+
 void initBlock{{blockSize}}(){
     uint64_t * chunk{{blockSize}} = chunkRequest(CHUNKSIZE);
-    *chunk{{blockSize}} = localThreadInfo->threadID;
+    *chunk{{blockSize}} = 0x7fffffffffffffffUL;
     localThreadInfo->smallBlockInfo.chunk{{blockSize}} = chunk{{blockSize}};
     localThreadInfo->smallBlockInfo.chunk{{blockSize}}Usage = 4096 - 8 + SUPERBLOCKSIZE;
     localThreadInfo->smallBlockInfo.localSuperBlock{{blockSize}} = chunk{{blockSize}} + (4096 / 8) - 1;
-    localThreadInfo->smallBlockInfo.localSuperBlock{{blockSize}}BitMap = chunk{{blockSize}} + 8;
+    localThreadInfo->smallBlockInfo.localSuperBlock{{blockSize}}BitMap = chunk{{blockSize}};
     localThreadInfo->smallBlockInfo.managerPageUsage{{blockSize}} = 2;
 }
 
@@ -21,34 +24,38 @@ void freeBlock{{blockSize}}(BlockHeader *block, BlockHeader header){
     int index = getIndex(header);
     uint64_t mask = 1 << index;
     uint64_t bitMapContent = __atomic_or_fetch(superBlockBitMap, mask, __ATOMIC_RELAXED);
-    if(bitMapContent & SUPERBLOCK_CLEANING_FLAG){
-        // in cleaning stage
-        if(_popcnt64(bitMapContent) >= SUPERBLOCK_CLEANING_TARGET){
-            // should exit cleaning stage
-            bitMapContent = __atomic_fetch_and(superBlockBitMap, (~SUPERBLOCK_CLEANING_FLAG), __ATOMIC_RELAXED);
-            if(bitMapContent & SUPERBLOCK_CLEANING_FLAG){
-                // lucky audience, add the super block to stack
-                unsigned int threadID = *(uint64_t*)(((uint64_t)superBlockBitMap)&(~4095UL));
-                push_nonblocking_stack(
-                    ((uint64_t*)block)+1, 
-                    (localThreadInfo->smallBlockInfo.cleanSuperBlock{{blockSize}}Stack), 
-                    superBlockSetNext
-                );
-            }
-        }        
+    int freeBlockCount = _popcnt64(bitMapContent);
+    if( (index == 63 && freeBlockCount > SUPERBLOCK_CLEANING_TARGET) ||
+        ( index != 63 && bitMapContent&(1UL<<63) && freeBlockCount == SUPERBLOCK_CLEANING_TARGET) ){
+        // should exit cleaning stage
+        unsigned int threadID = getSmallBlockThreadID(superBlockBitMap);
+        push_nonblocking_stack(
+            ((uint64_t*)block)+1, 
+            (threadInfoArray[threadID].smallBlockInfo.cleanSuperBlock{{blockSize}}Stack), 
+            superBlockSetNext
+        );        
     }
 }
 
 static BlockHeader *findLocalVictim(){
-    uint64_t localSuperBlock{{blockSize}}BitMapContent = *(localThreadInfo->smallBlockInfo.localSuperBlock{{blockSize}}BitMap);
+    int victimIndex = -1;
+    uint64_t slotMask = 0;
+    uint64_t *superBlock = localThreadInfo->smallBlockInfo.localSuperBlock{{blockSize}};
+    uint64_t *localSuperBlockBitmap = localThreadInfo->smallBlockInfo.localSuperBlock{{blockSize}}BitMap;
+    uint64_t localSuperBlock{{blockSize}}BitMapContent = *localSuperBlockBitmap;
     if(localSuperBlock{{blockSize}}BitMapContent == 0){
-        // local super block empty
-        return NULL;
+        // only MSB to be used
+        slotMask = (1UL<<63);
+        victimIndex = 63;
+        getNewLocalSuperBlock();
+    }else{
+        slotMask = _blsi_u64(localSuperBlock{{blockSize}}BitMapContent);
+        victimIndex = _tzcnt_u64(slotMask);
+        __atomic_fetch_and(localSuperBlockBitmap, (~slotMask), __ATOMIC_RELAXED);
     }
-    uint64_t slotMask = _blsi_u64(localSuperBlock{{blockSize}}BitMapContent);
-    int index = _tzcnt_u64(slotMask);
-    __atomic_fetch_and(localThreadInfo->smallBlockInfo.localSuperBlock{{blockSize}}BitMap, (~slotMask), __ATOMIC_RELAXED);
-    return (BlockHeader*)(localThreadInfo->smallBlockInfo.localSuperBlock{{blockSize}} + index);
+    BlockHeader *result = superBlock + (SUPERBLOCKSIZE/sizeof(uint64_t)) * victimIndex;
+    *result = packHeader({{blockSize}}, victimIndex, localSuperBlockBitmap);
+    return result;
 }
 
 static void getNewLocalSuperBlock(){
@@ -80,18 +87,6 @@ static void getNewLocalSuperBlock(){
 }
 
 BlockHeader *findVictim{{blockSize}}(){
-    BlockHeader *result = NULL;
-    // check local super block first
-    result = findLocalVictim();
-    if(result != NULL){
-        return result;
-    }
-
-    // local super block is full, set as cleaning, and get a new one
-    __atomic_fetch_or((localThreadInfo->smallBlockInfo.localSuperBlock{{blockSize}}BitMap), SUPERBLOCK_CLEANING_FLAG, __ATOMIC_RELAXED);
-    getNewLocalSuperBlock();
-
-    // check local super block again, guaranteed to success
     return findLocalVictim();
 }
 
