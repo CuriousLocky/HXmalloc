@@ -1,0 +1,19 @@
+#include "BlockCategory.h"
+
+int smallBlockSizes[SMALL_BLOCK_CATEGORIES] = {
+    16, 0, 32, 48, 64, 96, 128, 192, 256, 384, 512
+};
+int smallSuperBlockSizes[SMALL_BLOCK_CATEGORIES] = {
+    1024, 0, 2048, 3072, 4096, 6144, 8192, 12288, 16384, 24576, 32768
+};
+int smallChunkSizes[SMALL_BLOCK_CATEGORIES] = {
+    524288, 4096, 1048576, 1568768, 2093056, 3137536, 4182016, 6270976, 8359936, 12537856, 16715776
+};
+
+int midBlockSizes[MID_BLOCK_CATEGORIES] = {
+
+};
+
+int midSuperBlockSizes[MID_BLOCK_CATEGORIES] = {
+
+};

@@ -2,8 +2,7 @@
 #include "HXmalloc.h"
 #include "NonblockingStack.h"
 #include "SuperBlock.h"
-
-#define SMALL_BLOCK_CATEGORIES  11
+#include "BlockCategory.h"
 
 typedef struct{
     NonBlockingStackBlock cleanSuperBlockStacks[SMALL_BLOCK_CATEGORIES];
