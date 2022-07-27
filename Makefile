@@ -14,21 +14,23 @@ DEPS = $(wildcard include/*.c) $(wildcard generated/include/*.c)
 OBJ = $(SRCS:src/%.c=obj/%.o)
 GEN_OBJ = $(GEN_SRCS:generated/src/%.c=obj/generated/%.o)
 
-all: $(OBJ_DIR) $(GEN_OBJ_DIR) HXmalloc.so
+# all: $(OBJ_DIR) $(GEN_OBJ_DIR) HXmalloc.so
+all: $(OBJ_DIR) HXmalloc.so
 
 $(OBJ_DIR):
 	@mkdir -p $@
 $(GEN_OBJ_DIR):
 	@mkdir -p $@
 
-HXmalloc.so: $(OBJ) $(GEN_OBJ)
+# HXmalloc.so: $(OBJ) $(GEN_OBJ)
+HXmalloc.so: $(OBJ)
 	@$(CXX) $(CFLAGS) -DRUNTIME -shared $(OBJ) $(GEN_OBJ) -o $@ -lpthread -ldl
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@$(CXX) $(CFLAGS) -c $< -o $@
 
-$(GEN_OBJ_DIR)/%.o: $(GEN_SRC_DIR)/%.c
-	@$(CXX) $(CFLAGS) -c $< -o $@
+# $(GEN_OBJ_DIR)/%.o: $(GEN_SRC_DIR)/%.c
+# 	@$(CXX) $(CFLAGS) -c $< -o $@
 
 clean:
 	@rm -rf obj HXmalloc.so generated

@@ -16,5 +16,8 @@ void initThreadInfo(){
     unsigned int threadID = __atomic_fetch_add(&threadInfoArrayUsage, 1, __ATOMIC_RELAXED);
     localThreadInfo = &(threadInfoArray[threadID]);
     localThreadInfo->threadID = threadID;
-    initSmallBlock();
 }
+
+// TODO: implement thread initiator
+
+// TODO: implement thread destroyer

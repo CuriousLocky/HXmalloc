@@ -55,18 +55,15 @@ smallBlockSrcFileName = genSrcPath + "smallBlock.c"
 smallBlockSrcTemplate = ""
 with open(smallBlockSrcTemplateFileName) as templateFile:
     smallBlockSrcTemplate = Template(templateFile.read())
-smallBlockInitFunctions = []
 findVictimFunctions = []
 freeBlockFunctions = []
 smallBlockHeaders = []
 for blockSize in smallBlockSizes:
     smallBlockHeaders.append("#include \"smallBlock{blockSize}.h\"".format(blockSize = blockSize))
-    smallBlockInitFunctions.append("    initBlock{blockSize}();".format(blockSize = blockSize))
     findVictimFunctions.append("        findVictim{blockSize}".format(blockSize = blockSize))
     freeBlockFunctions.append("        freeBlock{blockSize}".format(blockSize = blockSize))
 with open(smallBlockSrcFileName, "w") as outputFile:
     outputFile.write(smallBlockSrcTemplate.render(
-        initBlock="\n".join(smallBlockInitFunctions), 
         blockSizeNumber=len(smallBlockSizes), 
         findVictimFunctions = ",\n".join(findVictimFunctions),
         freeBlockFunctions = ",\n".join(freeBlockFunctions),

@@ -18,7 +18,7 @@ static inline size_t getSize(uint64_t header){
     return (header & SIZEMASK) >> (48 + 6 - 4);
 }
 
-static inline uint64_t *getSuperBlockBitMap(uint64_t header){
+static inline uint64_t *getSuperBlockBitmap(uint64_t header){
     return (uint64_t*)(header & SUPERBLOCKADDRMASK);
 }
 

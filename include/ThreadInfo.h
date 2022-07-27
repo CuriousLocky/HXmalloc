@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "NonblockingStack.h"
-#include "smallBlock.h"
+#include "SmallBlockCommon.h"
 
 typedef struct{
     unsigned int threadID;

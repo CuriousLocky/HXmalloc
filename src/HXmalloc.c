@@ -1,5 +1,5 @@
 #include "HXmalloc.h"
-#include "smallBlock.h"
+#include "SmallBlockCommon.h"
 
 __attribute__((visibility("default")))
 void *malloc(size_t size) __attribute((weak, alias("hxmalloc")));
