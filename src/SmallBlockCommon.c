@@ -6,13 +6,13 @@
 
 #define SUPERBLOCK_INIT 0x7fffffffffffffffUL
 static int blockSizes[] = {
-    16, 32, 48, 64
+    16, 0, 32, 48, 64, 96, 128, 192, 256, 384, 512
 };
 static int superBlockSizes[] = {
-    16 * 64, 32 * 64, 48 * 64, 64 * 64
+    1024, 0, 2048, 3072, 4096, 6144, 8192, 12288, 16384, 24576, 32768
 };
 static int chunkSizes[] = {
-    524288, 1048576, 1568768, 2093056
+    524288, 4096, 1048576, 1568768, 2093056, 3137536, 4182016, 6270976, 8359936, 12537856, 16715776
 };
 
 static unsigned int getThreadID(uint64_t *superBlockBitmap);
@@ -106,13 +106,21 @@ static unsigned int getThreadID(uint64_t *superBlockBitmap){
     return bitmapPage[510]; // second to the last
 }
 
+static inline int getType(uint64_t size){
+    int secondBitIndex = 64 - _lzcnt_u64(size) - 2;
+    int base = (secondBitIndex - 3) * 2;
+    int offset1 = (size & (1UL << secondBitIndex))!=0;
+    int offset2 = _bzhi_u64(size, secondBitIndex)!=0;
+    return base + offset1 + offset2;
+}
+
 void freeSmallBlock(BlockHeader *block, BlockHeader header){
     size_t size = getSize(header);
-    int type = size/16 - 1;
+    int type = getType(size);
     _freeSmallBlock(block, header, type);
 }
 
 BlockHeader *findSmallVictim(uint64_t size){
-    int type = size/16 - 1;
+    int type = getType(size);
     findLocalVictim(type);
 }

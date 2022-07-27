@@ -7,7 +7,7 @@ void *malloc(size_t size) __attribute((weak, alias("hxmalloc")));
 __attribute__((visibility("default")))
 void *hxmalloc(size_t size){
     if(size == 0){return NULL;}
-    if(size + 8 <= 64){
+    if(size + 8 <= 512){
         // small block
         // align to 16
         size += 8;
@@ -100,7 +100,7 @@ void hxfree(void *ptr){
     BlockHeader *block = getBlockHeader(ptr);
     BlockHeader header = *block;
     uint64_t size = getSize(header);
-    if(size <= 64){
+    if(size <= 512){
         // small block
         freeSmallBlock(block, header);
     }
