@@ -122,5 +122,5 @@ void freeSmallBlock(BlockHeader *block, BlockHeader header){
 
 BlockHeader *findSmallVictim(uint64_t size){
     int type = getType(size);
-    findLocalVictim(type);
+    return findLocalVictim(type);
 }
