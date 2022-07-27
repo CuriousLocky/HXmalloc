@@ -1,7 +1,7 @@
 #pragma once
 #include "HXmalloc.h"
 #include "NonblockingStack.h"
-#include "superBlock.h"
+#include "SuperBlock.h"
 
 #define SMALL_BLOCK_CATEGORIES  11
 

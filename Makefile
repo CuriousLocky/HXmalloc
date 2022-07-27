@@ -1,6 +1,6 @@
 CXX = gcc
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-CFLAGS = -fPIC -fvisibility=hidden -std=gnu17 -mcx16 -ftls-model=initial-exec -march=native -nostdlib
+CFLAGS = -fPIC -fvisibility=hidden -std=gnu17 -mcx16 -ftls-model=initial-exec -march=native -nostdlib -Wall
 CFLAGS += -I $(ROOT_DIR)/include -I $(ROOT_DIR)/generated/include
 
 OBJ_DIR = obj
