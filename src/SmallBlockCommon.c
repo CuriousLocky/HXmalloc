@@ -9,14 +9,20 @@
 static unsigned int getThreadID(uint64_t *superBlockBitmap);
 static void getNewSuperBlock(int type);
 
-static void initSmallBlock(int type){
+static int initSmallBlock(int type){
     uint64_t *newChunk = chunkRequest(smallChunkSizes[type]);
+    if(__glibc_unlikely(newChunk == NULL)){
+        return -1;
+    }
     *newChunk = SUPERBLOCK_INIT;
     localThreadInfo->smallBlockInfo.chunks[type] = newChunk;
     localThreadInfo->smallBlockInfo.chunkUsages[type] = 4096 - 8 + smallSuperBlockSizes[type];
     localThreadInfo->smallBlockInfo.localSuperBlockBitMaps[type] = newChunk;
     localThreadInfo->smallBlockInfo.localSuperBlocks[type] = newChunk + (4096/8) - 1;
     localThreadInfo->smallBlockInfo.managerPageUsages[type] = 1;
+    // set ThreadID to chunk
+    newChunk[510] = localThreadInfo->threadID;
+    return 0;
 }
 
 static void _freeSmallBlock(BlockHeader *block, BlockHeader header, int type){
@@ -40,7 +46,10 @@ static void _freeSmallBlock(BlockHeader *block, BlockHeader header, int type){
 static BlockHeader *findLocalVictim(int type){
     if(__glibc_unlikely(localThreadInfo->smallBlockInfo.localSuperBlocks[type] == NULL)){
         // initialize
-        initSmallBlock(type);
+        int initResult = initSmallBlock(type);
+        if(__glibc_unlikely(initResult < 0)){
+            return NULL;
+        }
     }
     int victimIndex = -1;
     uint64_t slotMask = 0;
