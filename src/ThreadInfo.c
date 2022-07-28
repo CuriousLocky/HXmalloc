@@ -12,6 +12,7 @@
 #define MAX_THREAD
 
 ThreadInfo *threadInfoArray;
+static int threadMax;
 static unsigned int threadInfoArrayUsage;
 static NonBlockingStackBlock inactiveThreadInfoStack = {.block_16b = 0};
 static pthread_key_t inactiveKey;
@@ -39,6 +40,9 @@ static void initThreadInfo(){
     );
     if(targetThreadInfo == NULL){
         threadID = __atomic_fetch_add(&threadInfoArrayUsage, 1, __ATOMIC_RELAXED);
+        if(__glibc_unlikely((int)threadID >= threadMax)){
+            exit(EXIT_FAILURE);
+        }
         targetThreadInfo = &(threadInfoArray[threadID]);
         targetThreadInfo->threadID = threadID;
     }
@@ -55,7 +59,7 @@ __attribute__ ((constructor))
 void initThreadInfoArray(){
     char buffer[128] = {0};
     int threadsMaxFile = open("/proc/sys/kernel/threads-max", O_RDONLY);
-    int threadMax = 4096;
+    threadMax = 0;
     if(threadsMaxFile != -1){
         if(read(threadsMaxFile, buffer, 128) != -1){
             // open and read successfully
