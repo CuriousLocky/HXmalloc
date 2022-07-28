@@ -1,23 +1,121 @@
+#include <pthread.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+#define __USE_GNU
+#include <dlfcn.h>
 #include "ThreadInfo.h"
 #include "NonblockingStack.h"
+#include "MemoryPool.h"
 
 #define MAX_THREAD
 
 ThreadInfo *threadInfoArray;
-static ThreadInfo _threadInfoArray[4096];
 static unsigned int threadInfoArrayUsage;
 static NonBlockingStackBlock inactiveThreadInfoStack = {.block_16b = 0};
+static pthread_key_t inactiveKey;
 
 __thread ThreadInfo *localThreadInfo;
 
-__attribute__ ((constructor))
-void initThreadInfo(){
-    threadInfoArray = _threadInfoArray;
-    unsigned int threadID = __atomic_fetch_add(&threadInfoArrayUsage, 1, __ATOMIC_RELAXED);
-    localThreadInfo = &(threadInfoArray[threadID]);
-    localThreadInfo->threadID = threadID;
+static void find_thread_create();
+static void setThreadInfoInactive(void *arg);
+
+static inline ThreadInfo *threadInfoGetNext(ThreadInfo *prevThreadInfo){
+    return prevThreadInfo->next;
 }
 
-// TODO: implement thread initiator
+static inline void threadInfoSetNext(ThreadInfo *prevThreadInfo, ThreadInfo *nextThreadInfo){
+    prevThreadInfo->next = nextThreadInfo;
+}
 
-// TODO: implement thread destroyer
+// Initiate ThreadInfo for this thread
+static void initThreadInfo(){
+    // try to pop inactive ThreadInfo stack
+    unsigned int threadID = 0;
+    ThreadInfo *targetThreadInfo = pop_nonblocking_stack(
+        inactiveThreadInfoStack,
+        threadInfoGetNext
+    );
+    if(targetThreadInfo == NULL){
+        threadID = __atomic_fetch_add(&threadInfoArrayUsage, 1, __ATOMIC_RELAXED);
+        targetThreadInfo = &(threadInfoArray[threadID]);
+        targetThreadInfo->threadID = threadID;
+    }
+    localThreadInfo = targetThreadInfo;
+
+    // use pthread_key to register thread destroyer
+    pthread_key_create(&inactiveKey, setThreadInfoInactive);
+    // set some meaningless value to make key effective
+    pthread_setspecific(inactiveKey, (void*)0x8353);
+}
+
+// Initiate ThreadInfo Array, thread_create overriding and init ThreadInfo for current thread
+__attribute__ ((constructor))
+void initThreadInfoArray(){
+    char buffer[128] = {0};
+    int threadsMaxFile = open("/proc/sys/kernel/threads-max", O_RDONLY);
+    int threadMax = 4096;
+    if(threadsMaxFile != -1){
+        if(read(threadsMaxFile, buffer, 128) != -1){
+            // open and read successfully
+            threadMax = atoi(buffer);
+        }
+        close(threadsMaxFile);
+    }
+    threadInfoArray = chunkRequest(sizeof(ThreadInfo) * threadMax);
+    find_thread_create();
+    initThreadInfo();
+}
+
+
+// Override pthread_create to make sure initThreadInfo() is executed for every thread created
+typedef int (*pthread_create_fpt)(pthread_t *, const pthread_attr_t *, void *(*)(void*), void *);
+static pthread_create_fpt thread_create = NULL;
+static void find_thread_create(){
+    char *error;
+    dlerror();  // Clear any existing error
+
+    thread_create = (pthread_create_fpt)dlsym(RTLD_NEXT, "pthread_create");
+    if ((error = dlerror()) != NULL) {
+        fprintf(stderr, "%s\n", error);
+        exit(EXIT_FAILURE);
+    }
+}
+typedef struct Task{
+    void *(*routine)(void *);
+    void *arg;
+}Task;
+
+void *wrapped_task(void *task){
+    initThreadInfo();
+    Task* task_content = task;
+    void *(*routine)(void *) = task_content->routine;
+    void *arg = task_content->arg;
+    hxfree(task);
+    return routine(arg);
+}
+
+int HX_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+                   void *(*start_routine)(void *), void *arg){
+    Task *task = hxmalloc(sizeof(Task));
+    task->routine = start_routine;
+    task->arg = arg;
+    
+    return thread_create(thread, attr, wrapped_task, task);
+}
+
+__attribute__((visibility("default")))
+int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+                   void *(*start_routine)(void *), void *arg)
+                   __attribute__((weak, alias("HX_pthread_create")));
+
+// set the current ThreadInfo inactive after exiting
+static void setThreadInfoInactive(void *arg){
+    push_nonblocking_stack(
+        localThreadInfo, 
+        inactiveThreadInfoStack,
+        threadInfoSetNext
+    );
+    localThreadInfo = NULL;
+}

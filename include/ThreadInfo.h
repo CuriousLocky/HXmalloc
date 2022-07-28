@@ -4,9 +4,10 @@
 #include "NonblockingStack.h"
 #include "SmallBlockCommon.h"
 
-typedef struct{
+typedef struct _ThreadInfo{
     unsigned int threadID;
     SmallBlockThreadInfo smallBlockInfo;
+    struct _ThreadInfo *next;
 }ThreadInfo;
 
 extern ThreadInfo *threadInfoArray;
