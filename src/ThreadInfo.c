@@ -68,7 +68,6 @@ void initThreadInfoArray(){
     initThreadInfo();
 }
 
-
 // Override pthread_create to make sure initThreadInfo() is executed for every thread created
 typedef int (*pthread_create_fpt)(pthread_t *, const pthread_attr_t *, void *(*)(void*), void *);
 static pthread_create_fpt thread_create = NULL;

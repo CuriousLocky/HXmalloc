@@ -1,5 +1,9 @@
 #pragma once
 
+#include <stdint.h>
+
+int getSmallType(uint64_t size);
+
 #define SMALL_BLOCK_CATEGORIES  11
 extern int smallBlockSizes[];
 extern int smallSuperBlockSizes[];

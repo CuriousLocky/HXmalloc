@@ -1,5 +1,6 @@
 #include "HXmalloc.h"
 #include "SmallBlockCommon.h"
+#include "BlockCategory.h"
 
 __attribute__((visibility("default")))
 void *malloc(size_t size) __attribute((weak, alias("hxmalloc")));
@@ -7,87 +8,19 @@ void *malloc(size_t size) __attribute((weak, alias("hxmalloc")));
 __attribute__((visibility("default")))
 void *hxmalloc(size_t size){
     if(size == 0){return NULL;}
-    if(size + 8 <= 512){
+    if(size + 8 <= smallBlockSizes[SMALL_BLOCK_CATEGORIES-1]){
         // small block
         // align to 16
         size += 8;
         size = align(size, 16);
         return findSmallVictim(size) + 1;
     }
-    if(size >= 4080){
+    if(size >= midBlockSizes[MID_BLOCK_CATEGORIES-1]){
         // big block
         // TODO: implement big block handler functions
         return NULL;
     }
     // TODO: implement middle block handler functions
-    size = (size >> 6) + ((size & 63)!=0);
-    switch(size){
-        case 1:
-        case 2:
-        case 3:
-        case 4:
-        case 5:
-        case 6:
-        case 7:
-        case 8:
-        case 9:
-        case 10:
-        case 11:
-        case 12:
-        case 13:
-        case 14:
-        case 15:
-        case 16:
-        case 17:
-        case 18:
-        case 19:
-        case 20:
-        case 21:
-        case 22:
-        case 23:
-        case 24:
-        case 25:
-        case 26:
-        case 27:
-        case 28:
-        case 29:
-        case 30:
-        case 31:
-        case 32:
-        case 33:
-        case 34:
-        case 35:
-        case 36:
-        case 37:
-        case 38:
-        case 39:
-        case 40:
-        case 41:
-        case 42:
-        case 43:
-        case 44:
-        case 45:
-        case 46:
-        case 47:
-        case 48:
-        case 49:
-        case 50:
-        case 51:
-        case 52:
-        case 53:
-        case 54:
-        case 55:
-        case 56:
-        case 57:
-        case 58:
-        case 59:
-        case 60:
-        case 61:
-        case 62:
-        case 63:
-        default:
-            break;
-    }
     return NULL;
 }
 
@@ -99,9 +32,23 @@ void hxfree(void *ptr){
     if(ptr == NULL){return;}
     BlockHeader *block = getBlockHeader(ptr);
     BlockHeader header = *block;
-    uint64_t size = getSize(header);
-    if(size <= 512){
+    uint64_t size = hxmallocUsableSize(ptr);
+    if(size <= smallBlockSizes[SMALL_BLOCK_CATEGORIES-1]){
         // small block
         freeSmallBlock(block, header);
     }
+}
+
+__attribute__((visibility("default")))
+size_t malloc_usable_size(void *__ptr) __attribute((weak, alias("hxmallocUsableSize")));
+
+__attribute__((visibility("default")))
+size_t hxmallocUsableSize(void *ptr){
+    BlockHeader *block = getBlockHeader(ptr);
+    BlockHeader header = *block;
+    int type = getType(header);
+    if(type < SMALL_BLOCK_CATEGORIES){
+        return smallBlockSizes[type];
+    }
+    return 0;
 }

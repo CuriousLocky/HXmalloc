@@ -58,7 +58,7 @@ static BlockHeader *findLocalVictim(int type){
         __atomic_fetch_and(superBlockBitmap, (~slotMask), __ATOMIC_RELAXED);
     }
     BlockHeader *result = superBlock + (smallBlockSizes[type]/sizeof(uint64_t)) * victimIndex;
-    *result = packHeader(smallBlockSizes[type], victimIndex, superBlockBitmap);
+    *result = packHeader(type, victimIndex, superBlockBitmap);
     return result;
 }
 
@@ -97,21 +97,12 @@ static unsigned int getThreadID(uint64_t *superBlockBitmap){
     return bitmapPage[510]; // second to the last
 }
 
-static inline int getType(uint64_t size){
-    int secondBitIndex = 64 - _lzcnt_u64(size) - 2;
-    int base = (secondBitIndex - 3) * 2;
-    int offset1 = (size & (1UL << secondBitIndex))!=0;
-    int offset2 = _bzhi_u64(size, secondBitIndex)!=0;
-    return base + offset1 + offset2;
-}
-
 void freeSmallBlock(BlockHeader *block, BlockHeader header){
-    size_t size = getSize(header);
-    int type = getType(size);
+    int type = getType(header);
     _freeSmallBlock(block, header, type);
 }
 
 BlockHeader *findSmallVictim(uint64_t size){
-    int type = getType(size);
+    int type = getSmallType(size);
     return findLocalVictim(type);
 }
