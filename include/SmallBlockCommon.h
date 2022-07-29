@@ -6,8 +6,8 @@
 
 typedef struct{
     NonBlockingStackBlock cleanSuperBlockStacks[SMALL_BLOCK_CATEGORIES];
-    uint64_t *localSuperBlocks[SMALL_BLOCK_CATEGORIES];
-    uint64_t *localSuperBlockBitMaps[SMALL_BLOCK_CATEGORIES];
+    uint64_t *activeSuperBlocks[SMALL_BLOCK_CATEGORIES];
+    uint64_t *activeSuperBlockBitMaps[SMALL_BLOCK_CATEGORIES];
     uint64_t *chunks[SMALL_BLOCK_CATEGORIES];
     uint64_t chunkUsages[SMALL_BLOCK_CATEGORIES];
     unsigned int managerPageUsages[SMALL_BLOCK_CATEGORIES];

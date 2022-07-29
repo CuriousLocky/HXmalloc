@@ -33,14 +33,14 @@ static int initMidBlock(int midType){
     }
 
     // TODO: interleave bitmap page layout
-    localThreadInfo->midBlockInfo.localSuperBlocks[midType] = newChunk;
-    localThreadInfo->midBlockInfo.localSuperBlockBitMaps[midType] = 
+    localThreadInfo->midBlockInfo.activeSuperBlocks[midType] = newChunk;
+    localThreadInfo->midBlockInfo.activeSuperBlockBitMaps[midType] = 
         localThreadInfo->midBlockInfo.bitmapPage + 
         localThreadInfo->midBlockInfo.bitmapPageUsage;
     localThreadInfo->midBlockInfo.bitmapChunkUsage ++;
 
     // init Bitmap
-    *(localThreadInfo->midBlockInfo.localSuperBlockBitMaps[midType]) = SUPERBLOCK_INIT;
+    *(localThreadInfo->midBlockInfo.activeSuperBlockBitMaps[midType]) = SUPERBLOCK_INIT;
 
     // set ThreadID to chunk
     *newChunk = localThreadInfo->threadID;
@@ -66,17 +66,18 @@ static void _freeMidBlock(BlockHeader *block, BlockHeader header, int midType){
 }
 
 static BlockHeader *findLocalVictim(int midType){
-    if(__glibc_unlikely(localThreadInfo->midBlockInfo.localSuperBlocks[midType] == NULL)){
+    if(__glibc_unlikely(localThreadInfo->midBlockInfo.activeSuperBlocks[midType] == NULL)){
         // initialize
         int initResult = initMidBlock(midType);
         if(__glibc_unlikely(initResult < 0)){
+            // init failed
             return NULL;
         }
     }
     int victimIndex = -1;
     uint64_t slotMask = 0;
-    uint64_t *superBlock = localThreadInfo->midBlockInfo.localSuperBlocks[midType];
-    uint64_t *superBlockBitmap = localThreadInfo->midBlockInfo.localSuperBlockBitMaps[midType];
+    uint64_t *superBlock = localThreadInfo->midBlockInfo.activeSuperBlocks[midType];
+    uint64_t *superBlockBitmap = localThreadInfo->midBlockInfo.activeSuperBlockBitMaps[midType];
     uint64_t superBlockBitmapContent = *superBlockBitmap;
     if(superBlockBitmapContent == 0){
         // only MSB to be used
@@ -88,7 +89,7 @@ static BlockHeader *findLocalVictim(int midType){
         victimIndex = _tzcnt_u64(slotMask);
         __atomic_fetch_and(superBlockBitmap, (~slotMask), __ATOMIC_RELAXED);
     }
-    BlockHeader *result = superBlock + (midType * 4096/sizeof(uint64_t)) * victimIndex;
+    BlockHeader *result = superBlock + (midType+1) * 4096/sizeof(uint64_t) * victimIndex;
     *result = packHeader(midType + SMALL_BLOCK_CATEGORIES, victimIndex, superBlockBitmap);
     return result;
 }
@@ -100,18 +101,19 @@ static void getNewSuperBlock(int midType){
         superBlockGetNext
     );
     if(randomCleanBlock != NULL){
+        // new active super block from clean stack
         BlockHeader *block = randomCleanBlock - 1;
         BlockHeader header = *block;
         uint64_t *superBlockBitmap = getSuperBlockBitmap(header);
-        uint64_t *superBlock = (uint64_t*)block - (getIndex(header)) * 4096 * midType/sizeof(uint64_t);
-        localThreadInfo->midBlockInfo.localSuperBlocks[midType] = superBlock;
-        localThreadInfo->midBlockInfo.localSuperBlockBitMaps[midType] = superBlockBitmap;
+        uint64_t *superBlock = (uint64_t*)block - (getIndex(header)) * 4096 * (midType+1)/sizeof(uint64_t);
+        localThreadInfo->midBlockInfo.activeSuperBlocks[midType] = superBlock;
+        localThreadInfo->midBlockInfo.activeSuperBlockBitMaps[midType] = superBlockBitmap;
         return;
     }
     // chunk is full request a new chunk
     int initResult = initMidBlock(midType);
     if(initResult < 0){
-        localThreadInfo->midBlockInfo.localSuperBlocks[midType] = NULL;
+        localThreadInfo->midBlockInfo.activeSuperBlocks[midType] = NULL;
     }
 }
 

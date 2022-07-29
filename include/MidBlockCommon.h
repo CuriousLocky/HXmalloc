@@ -8,8 +8,8 @@
 
 typedef struct{
     NonBlockingStackBlock cleanSuperBlockStacks[MID_BLOCK_CATEGORIES];
-    uint64_t *localSuperBlocks[MID_BLOCK_CATEGORIES];
-    uint64_t *localSuperBlockBitMaps[MID_BLOCK_CATEGORIES];
+    uint64_t *activeSuperBlocks[MID_BLOCK_CATEGORIES];
+    uint64_t *activeSuperBlockBitMaps[MID_BLOCK_CATEGORIES];
     uint64_t *bitmapChunk;
     uint64_t bitmapChunkUsage;
     uint64_t *bitmapPage;
