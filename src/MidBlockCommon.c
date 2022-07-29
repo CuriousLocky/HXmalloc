@@ -11,7 +11,7 @@ static unsigned int getThreadID(BlockHeader *block, int index, int midType);
 static void getNewSuperBlock(int midType);
 
 static int initMidBlock(int midType){
-    uint64_t *newChunk = chunkRequest(midType * 4096);
+    uint64_t *newChunk = chunkRequest((midType+1) * 4096 * 64);
     if(__glibc_unlikely(newChunk == NULL)){
         return -1;
     }
@@ -120,7 +120,7 @@ static void getNewSuperBlock(int midType){
 static unsigned int getThreadID(BlockHeader *block, int index, int midType){
     // Thread ID stored in first block header padding
     uint64_t *firstBlock = (uint64_t*)block - index * 4096 * (midType+1) / sizeof(uint64_t);
-    return *(firstBlock - 1);
+    return *(firstBlock);
 }
 
 void freeMidBlock(BlockHeader *block, BlockHeader header){
