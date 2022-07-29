@@ -37,7 +37,7 @@ static int initMidBlock(int midType){
     localThreadInfo->midBlockInfo.activeSuperBlockBitMaps[midType] = 
         localThreadInfo->midBlockInfo.bitmapPage + 
         localThreadInfo->midBlockInfo.bitmapPageUsage;
-    localThreadInfo->midBlockInfo.bitmapChunkUsage ++;
+    localThreadInfo->midBlockInfo.bitmapPageUsage ++;
 
     // init Bitmap
     *(localThreadInfo->midBlockInfo.activeSuperBlockBitMaps[midType]) = SUPERBLOCK_INIT;
@@ -90,7 +90,7 @@ static BlockHeader *findLocalVictim(int midType){
         __atomic_fetch_and(superBlockBitmap, (~slotMask), __ATOMIC_RELAXED);
     }
     BlockHeader *result = superBlock + (midType+1) * 4096/sizeof(uint64_t) * victimIndex;
-    *result = packHeader(midType + SMALL_BLOCK_CATEGORIES, victimIndex, superBlockBitmap);
+    *(result + 1) = packHeader(midType + SMALL_BLOCK_CATEGORIES, victimIndex, superBlockBitmap);
     return result;
 }
 
@@ -112,14 +112,14 @@ static void getNewSuperBlock(int midType){
     }
     // chunk is full request a new chunk
     int initResult = initMidBlock(midType);
-    if(initResult < 0){
+    if(__glibc_unlikely(initResult < 0)){
         localThreadInfo->midBlockInfo.activeSuperBlocks[midType] = NULL;
     }
 }
 
 static unsigned int getThreadID(BlockHeader *block, int index, int midType){
     // Thread ID stored in first block header padding
-    uint64_t *firstBlock = (uint64_t*)block - index * 4096 * midType / sizeof(uint64_t);
+    uint64_t *firstBlock = (uint64_t*)block - index * 4096 * (midType+1) / sizeof(uint64_t);
     return *(firstBlock - 1);
 }
 
