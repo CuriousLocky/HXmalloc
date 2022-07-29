@@ -1,5 +1,6 @@
 #include "HXmalloc.h"
 #include "SmallBlockCommon.h"
+#include "MidBlockCommon.h"
 #include "BlockCategory.h"
 
 __attribute__((visibility("default")))
@@ -15,13 +16,14 @@ void *hxmalloc(size_t size){
         size = align(size, 16);
         return findSmallVictim(size) + 1;
     }
+    size += 16;
     if(size >= MAX_MID_BLOCK_SIZE){
         // big block
         // TODO: implement big block handler functions
         return NULL;
     }
-    // TODO: implement middle block handler functions
-    return NULL;
+    size = align(size, 4096);
+    return findMidVictim(size) + 2;
 }
 
 __attribute__((visibility("default")))
@@ -36,6 +38,11 @@ void hxfree(void *ptr){
     if(size <= MAX_SMALL_BLOCK_SIZE){
         // small block
         freeSmallBlock(block, header);
+    }else if(size >= MAX_MID_BLOCK_SIZE){
+        // big block
+    }else{
+        // mid block
+        freeMidBlock(block-1, header);
     }
 }
 
