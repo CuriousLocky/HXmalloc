@@ -5,10 +5,10 @@
 #include "NonblockingStack.h"
 #include "BlockCategory.h"
 
-#define SUPERBLOCK_INIT 0x7fffffffffffffffUL
+#define BITMAP_INIT 0x7fffffffffffffffUL
 
 static unsigned int getThreadID(BlockHeader *block, int index, int midType);
-static void getNewSuperBlock(int midType);
+static int getNewSuperBlock(int midType);
 
 static int initMidBlock(int midType){
     uint64_t *newChunk = chunkRequest((midType+1) * 4096 * 64);
@@ -40,7 +40,7 @@ static int initMidBlock(int midType){
     localThreadInfo->midBlockInfo.bitmapPageUsage ++;
 
     // init Bitmap
-    *(localThreadInfo->midBlockInfo.activeSuperBlockBitMaps[midType]) = SUPERBLOCK_INIT;
+    *(localThreadInfo->midBlockInfo.activeSuperBlockBitMaps[midType]) = BITMAP_INIT;
 
     // set ThreadID to chunk
     *newChunk = localThreadInfo->threadID;
@@ -68,7 +68,7 @@ static void _freeMidBlock(BlockHeader *block, BlockHeader header, int midType){
 static BlockHeader *findLocalVictim(int midType){
     if(__glibc_unlikely(localThreadInfo->midBlockInfo.activeSuperBlocks[midType] == NULL)){
         // initialize
-        int initResult = initMidBlock(midType);
+        int initResult = getNewSuperBlock(midType);
         if(__glibc_unlikely(initResult < 0)){
             // init failed
             return NULL;
@@ -83,7 +83,9 @@ static BlockHeader *findLocalVictim(int midType){
         // only MSB to be used
         slotMask = (1UL << 63);
         victimIndex = 63;
-        getNewSuperBlock(midType);
+        if(__glibc_unlikely(getNewSuperBlock(midType))){
+            localThreadInfo->midBlockInfo.activeSuperBlocks[midType] = NULL;
+        }
     }else{
         slotMask = _blsi_u64(superBlockBitmapContent);
         victimIndex = _tzcnt_u64(slotMask);
@@ -94,7 +96,7 @@ static BlockHeader *findLocalVictim(int midType){
     return result;
 }
 
-static void getNewSuperBlock(int midType){
+static int getNewSuperBlock(int midType){
     // check clean stack
     uint64_t *randomCleanBlock = pop_nonblocking_stack(
         (localThreadInfo->midBlockInfo.cleanSuperBlockStacks[midType]),
@@ -108,13 +110,10 @@ static void getNewSuperBlock(int midType){
         uint64_t *superBlock = (uint64_t*)block - (getIndex(header)) * 4096 * (midType+1)/sizeof(uint64_t);
         localThreadInfo->midBlockInfo.activeSuperBlocks[midType] = superBlock;
         localThreadInfo->midBlockInfo.activeSuperBlockBitMaps[midType] = superBlockBitmap;
-        return;
+        return 0;
     }
     // chunk is full request a new chunk
-    int initResult = initMidBlock(midType);
-    if(__glibc_unlikely(initResult < 0)){
-        localThreadInfo->midBlockInfo.activeSuperBlocks[midType] = NULL;
-    }
+    return initMidBlock(midType);
 }
 
 static unsigned int getThreadID(BlockHeader *block, int index, int midType){
