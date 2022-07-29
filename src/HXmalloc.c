@@ -8,14 +8,14 @@ void *malloc(size_t size) __attribute((weak, alias("hxmalloc")));
 __attribute__((visibility("default")))
 void *hxmalloc(size_t size){
     if(size == 0){return NULL;}
-    if(size + 8 <= smallBlockSizes[SMALL_BLOCK_CATEGORIES-1]){
+    if(size + 8 <= MAX_SMALL_BLOCK_SIZE){
         // small block
         // align to 16
         size += 8;
         size = align(size, 16);
         return findSmallVictim(size) + 1;
     }
-    if(size >= midBlockSizes[MID_BLOCK_CATEGORIES-1]){
+    if(size >= MAX_MID_BLOCK_SIZE){
         // big block
         // TODO: implement big block handler functions
         return NULL;
@@ -33,7 +33,7 @@ void hxfree(void *ptr){
     BlockHeader *block = getBlockHeader(ptr);
     BlockHeader header = *block;
     uint64_t size = hxmallocUsableSize(ptr);
-    if(size <= smallBlockSizes[SMALL_BLOCK_CATEGORIES-1]){
+    if(size <= MAX_SMALL_BLOCK_SIZE){
         // small block
         freeSmallBlock(block, header);
     }

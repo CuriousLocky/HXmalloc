@@ -98,7 +98,10 @@ static void getNewSuperBlock(int type){
         localThreadInfo->smallBlockInfo.managerPageUsages[type] += 1;
     }
     // chunk is full request a new chunk
-    initSmallBlock(type);
+    int initResult = initSmallBlock(type);
+    if(__glibc_unlikely(initResult < 0)){
+        localThreadInfo->smallBlockInfo.localSuperBlocks[type] = NULL;
+    }
 }
 
 static unsigned int getThreadID(uint64_t *superBlockBitmap){
