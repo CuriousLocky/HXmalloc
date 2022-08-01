@@ -94,9 +94,10 @@ static int getNewSuperBlock(int type){
     uint64_t chunkUsage = localThreadInfo->smallBlockInfo.chunkUsages[type];
     unsigned int managerPageUsage = localThreadInfo->smallBlockInfo.managerPageUsages[type];
     if(chunk != NULL && chunkUsage < smallChunkSizes[type]){
-        // TODO: Implement interleaved manager page
+        // interleaved manager page
         localThreadInfo->smallBlockInfo.activeSuperBlocks[type] = chunk + chunkUsage/sizeof(uint64_t);
-        localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type] = chunk + managerPageUsage;
+        localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type] = 
+            chunk + managerPageUsage / 64 + managerPageUsage % 64 * 8;
         localThreadInfo->smallBlockInfo.chunks[type] += smallSuperBlockSizes[type];
         localThreadInfo->smallBlockInfo.managerPageUsages[type] += 1;
         *(localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type]) = BITMAP_INIT;

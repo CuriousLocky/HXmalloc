@@ -31,14 +31,16 @@ static int initMidBlock(int midType){
             localThreadInfo->midBlockInfo.bitmapChunk +
             localThreadInfo->midBlockInfo.bitmapChunkUsage/sizeof(uint64_t);
         localThreadInfo->midBlockInfo.bitmapChunkUsage += 4096;
+        localThreadInfo->midBlockInfo.bitmapPageUsage = 0;
     }
 
-    // TODO: interleave bitmap page layout
+    // interleave bitmap page layout
     localThreadInfo->midBlockInfo.activeSuperBlocks[midType] = newChunk;
     localThreadInfo->midBlockInfo.activeSuperBlockBitMaps[midType] = 
         localThreadInfo->midBlockInfo.bitmapPage + 
-        localThreadInfo->midBlockInfo.bitmapPageUsage;
-    localThreadInfo->midBlockInfo.bitmapPageUsage ++;
+        localThreadInfo->midBlockInfo.bitmapPageUsage / 64 + 
+        localThreadInfo->midBlockInfo.bitmapPageUsage % 64 * 8;
+    localThreadInfo->midBlockInfo.bitmapPageUsage += 1;
 
     // init Bitmap
     *(localThreadInfo->midBlockInfo.activeSuperBlockBitMaps[midType]) = BITMAP_INIT;
