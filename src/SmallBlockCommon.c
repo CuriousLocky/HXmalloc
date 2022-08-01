@@ -92,7 +92,7 @@ static int getNewSuperBlock(int type){
     uint64_t *chunk = localThreadInfo->smallBlockInfo.chunks[type];
     uint64_t chunkUsage = localThreadInfo->smallBlockInfo.chunkUsages[type];
     unsigned int managerPageUsage = localThreadInfo->smallBlockInfo.managerPageUsages[type];
-    if(chunkUsage < smallChunkSizes[type]){
+    if(chunk != NULL && chunkUsage < smallChunkSizes[type]){
         localThreadInfo->smallBlockInfo.activeSuperBlocks[type] = chunk + chunkUsage/sizeof(uint64_t);
         localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type] = 
             chunk + managerPageUsage * 8 / 512 + managerPageUsage / 512;

@@ -15,9 +15,9 @@ static int initMidBlock(int midType){
     if(__glibc_unlikely(newChunk == NULL)){
         return -1;
     }
-    if(localThreadInfo->midBlockInfo.bitmapPageUsage >= 4096/8){
+    if(localThreadInfo->midBlockInfo.bitmapPageUsage >= 4096/8 || localThreadInfo->midBlockInfo.bitmapPage == NULL){
         // bitmap page full, get a new bitmap page
-        if(localThreadInfo->midBlockInfo.bitmapChunkUsage >= BITMAP_CHUNK_SIZE){
+        if(localThreadInfo->midBlockInfo.bitmapChunkUsage >= BITMAP_CHUNK_SIZE || localThreadInfo->midBlockInfo.bitmapChunk == NULL){
             // bitmap chunk full, get a new bitmap chunk
             uint64_t *newBitmapChunk = chunkRequest(BITMAP_CHUNK_SIZE);
             if(newBitmapChunk == NULL){
