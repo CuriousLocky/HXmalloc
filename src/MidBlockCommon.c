@@ -4,6 +4,7 @@
 #include "ThreadInfo.h"
 #include "NonblockingStack.h"
 #include "BlockCategory.h"
+#include "NoisyDebug.h"
 
 #define BITMAP_INIT 0x7fffffffffffffffUL
 
@@ -50,7 +51,7 @@ static int initMidBlock(int midType){
 static void _freeMidBlock(BlockHeader *block, BlockHeader header, int midType){
     uint64_t *superBlockBitmap = getSuperBlockBitmap(header);
     int index = getIndex(header);
-    uint64_t mask = 1 << index;
+    uint64_t mask = 1UL << index;
     uint64_t bitmapContent = __atomic_or_fetch(superBlockBitmap, mask, __ATOMIC_RELAXED);
     int freeBlockCount = _popcnt64(bitmapContent);
     if( (index == 63 && freeBlockCount > SUPERBLOCK_CLEANING_TARGET) ||
@@ -58,7 +59,7 @@ static void _freeMidBlock(BlockHeader *block, BlockHeader header, int midType){
         // should exit cleaning stage
         unsigned int threadID = getThreadID(block, index, midType);
         push_nonblocking_stack(
-            ((uint64_t*)block) + 1,
+            ((uint64_t*)block) + 2,
             (threadInfoArray[threadID].midBlockInfo.cleanSuperBlockStacks[midType]),
             superBlockSetNext
         );
@@ -83,7 +84,7 @@ static BlockHeader *findLocalVictim(int midType){
         // only MSB to be used
         slotMask = (1UL << 63);
         victimIndex = 63;
-        if(__glibc_unlikely(getNewSuperBlock(midType))){
+        if(__glibc_unlikely(getNewSuperBlock(midType) < 0)){
             localThreadInfo->midBlockInfo.activeSuperBlocks[midType] = NULL;
         }
     }else{
@@ -91,6 +92,7 @@ static BlockHeader *findLocalVictim(int midType){
         victimIndex = _tzcnt_u64(slotMask);
         __atomic_fetch_and(superBlockBitmap, (~slotMask), __ATOMIC_RELAXED);
     }
+    // printf("superBlockBitmapContent is 0x%lx\n", superBlockBitmapContent);
     BlockHeader *result = superBlock + (midType+1) * 4096/sizeof(uint64_t) * victimIndex;
     *(result + 1) = packHeader(midType + SMALL_BLOCK_CATEGORIES, victimIndex, superBlockBitmap);
     return result;
@@ -104,9 +106,10 @@ static int getNewSuperBlock(int midType){
     );
     if(randomCleanBlock != NULL){
         // new active super block from clean stack
-        BlockHeader *block = randomCleanBlock - 1;
-        BlockHeader header = *block;
+        BlockHeader *block = randomCleanBlock - 2;
+        BlockHeader header = *(block + 1);
         uint64_t *superBlockBitmap = getSuperBlockBitmap(header);
+        __atomic_fetch_and(superBlockBitmap, ~(1UL<<63), __ATOMIC_RELAXED);
         uint64_t *superBlock = (uint64_t*)block - (getIndex(header)) * 4096 * (midType+1)/sizeof(uint64_t);
         localThreadInfo->midBlockInfo.activeSuperBlocks[midType] = superBlock;
         localThreadInfo->midBlockInfo.activeSuperBlockBitMaps[midType] = superBlockBitmap;

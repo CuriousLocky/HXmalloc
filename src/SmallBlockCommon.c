@@ -28,7 +28,7 @@ static int initSmallChunk(int type){
 static void _freeSmallBlock(BlockHeader *block, BlockHeader header, int type){
     uint64_t *superBlockBitmap = getSuperBlockBitmap(header);
     int index = getIndex(header);
-    uint64_t mask = 1 << index;
+    uint64_t mask = 1UL << index;
     uint64_t bitmapContent = __atomic_or_fetch(superBlockBitmap, mask, __ATOMIC_RELAXED);
     int freeBlockCount = _popcnt64(bitmapContent);
     if( (index == 63 && freeBlockCount > SUPERBLOCK_CLEANING_TARGET) ||
@@ -83,6 +83,7 @@ static int getNewSuperBlock(int type){
         BlockHeader *block = randomCleanBlock - 1;
         BlockHeader header = *block;
         uint64_t *superBlockBitmap = getSuperBlockBitmap(header);
+        __atomic_fetch_and(superBlockBitmap, ~(1UL<<63), __ATOMIC_RELAXED);
         uint64_t *superBlock = (uint64_t*)block - (getIndex(header)) * smallBlockSizes[type]/sizeof(uint64_t);
         localThreadInfo->smallBlockInfo.activeSuperBlocks[type] = superBlock;
         localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type] = superBlockBitmap;
@@ -93,9 +94,9 @@ static int getNewSuperBlock(int type){
     uint64_t chunkUsage = localThreadInfo->smallBlockInfo.chunkUsages[type];
     unsigned int managerPageUsage = localThreadInfo->smallBlockInfo.managerPageUsages[type];
     if(chunk != NULL && chunkUsage < smallChunkSizes[type]){
+        // TODO: Implement interleaved manager page
         localThreadInfo->smallBlockInfo.activeSuperBlocks[type] = chunk + chunkUsage/sizeof(uint64_t);
-        localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type] = 
-            chunk + managerPageUsage * 8 / 512 + managerPageUsage / 512;
+        localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type] = chunk + managerPageUsage;
         localThreadInfo->smallBlockInfo.chunks[type] += smallSuperBlockSizes[type];
         localThreadInfo->smallBlockInfo.managerPageUsages[type] += 1;
         *(localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type]) = BITMAP_INIT;
