@@ -57,5 +57,9 @@ size_t hxmallocUsableSize(void *ptr){
     if(type < SMALL_BLOCK_CATEGORIES){
         return smallBlockSizes[type];
     }
+    type -= SMALL_BLOCK_CATEGORIES;
+    if(type < MID_BLOCK_CATEGORIES){
+        return (type + 1) * 4096;
+    }
     return 0;
 }
