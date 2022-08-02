@@ -68,8 +68,8 @@ void initThreadInfoArray(){
         close(threadsMaxFile);
     }
     threadInfoArray = chunkRequest(sizeof(ThreadInfo) * threadMax);
-    find_thread_create();
     initThreadInfo();
+    find_thread_create();
 }
 
 // Override pthread_create to make sure initThreadInfo() is executed for every thread created

@@ -1,3 +1,4 @@
+#include <string.h>
 #include "HXmalloc.h"
 #include "SmallBlockCommon.h"
 #include "MidBlockCommon.h"
@@ -62,4 +63,33 @@ size_t hxmallocUsableSize(void *ptr){
         return (type + 1) * 4096;
     }
     return 0;
+}
+
+__attribute__((visibility("default")))
+void *calloc(size_t nmemb, size_t size) __attribute((weak, alias("hxcalloc")));
+
+__attribute__((visibility("default")))
+void *hxcalloc(size_t nmemb, size_t size){
+    size_t totalSize = nmemb * size;
+    void *result = hxmalloc(totalSize);
+    memset(result, 0, totalSize);
+    return result;
+}
+
+__attribute__((visibility("default")))
+void *realloc(void *ptr, size_t size) __attribute((weak, alias("hxrealloc")));
+
+__attribute__((visibility("default")))
+void *hxrealloc(void *ptr, size_t size){
+    if(size < 0){
+        hxfree(ptr);
+    }
+    size_t usableSize = hxmallocUsableSize(ptr);
+    if(usableSize >= size){
+        return ptr;
+    }
+    void *newBlock = hxmalloc(size);
+    memcpy(newBlock, ptr, size);
+    hxfree(ptr);
+    return newBlock;
 }
