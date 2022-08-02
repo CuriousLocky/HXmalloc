@@ -21,7 +21,7 @@ static int initSmallChunk(int type){
     localThreadInfo->smallBlockInfo.activeSuperBlocks[type] = newChunk + (4096/8) - 1;
     localThreadInfo->smallBlockInfo.managerPageUsages[type] = 1;
     // set ThreadID to chunk
-    newChunk[510] = localThreadInfo->threadID;
+    newChunk[511-8] = localThreadInfo->threadID;
     return 0;
 }
 
@@ -93,14 +93,15 @@ static int getNewSuperBlock(int type){
     uint64_t *chunk = localThreadInfo->smallBlockInfo.chunks[type];
     uint64_t chunkUsage = localThreadInfo->smallBlockInfo.chunkUsages[type];
     unsigned int managerPageUsage = localThreadInfo->smallBlockInfo.managerPageUsages[type];
-    if(chunk != NULL && chunkUsage < smallChunkSizes[type]){
-        // interleaved manager page
+    if(chunk != NULL && chunkUsage + smallBlockSizes[type] < smallChunkSizes[type]){
+        // interleaved manager page    
         localThreadInfo->smallBlockInfo.activeSuperBlocks[type] = chunk + chunkUsage/sizeof(uint64_t);
         localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type] = 
             chunk + managerPageUsage / 64 + managerPageUsage % 64 * 8;
-        localThreadInfo->smallBlockInfo.chunks[type] += smallSuperBlockSizes[type];
+        localThreadInfo->smallBlockInfo.chunkUsages[type] += smallSuperBlockSizes[type];
         localThreadInfo->smallBlockInfo.managerPageUsages[type] += 1;
         *(localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type]) = BITMAP_INIT;
+        return 0;
     }
     // chunk is full request a new chunk
     return initSmallChunk(type);
@@ -108,7 +109,7 @@ static int getNewSuperBlock(int type){
 
 static unsigned int getThreadID(uint64_t *superBlockBitmap){
     uint64_t *bitmapPage = (uint64_t*)(((uint64_t)superBlockBitmap) & (~4095UL));
-    return bitmapPage[510]; // second to the last
+    return bitmapPage[511-8];
 }
 
 void freeSmallBlock(BlockHeader *block, BlockHeader header){
