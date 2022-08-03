@@ -18,6 +18,7 @@ static NonBlockingStackBlock inactiveThreadInfoStack = {.block_16b = 0};
 static pthread_key_t inactiveKey;
 
 __thread ThreadInfo *localThreadInfo;
+__thread unsigned int threadID;
 
 static void find_thread_create();
 static void setThreadInfoInactive(void *arg);
@@ -33,21 +34,21 @@ static inline void threadInfoSetNext(ThreadInfo *prevThreadInfo, ThreadInfo *nex
 // Initiate ThreadInfo for this thread
 static void initThreadInfo(){
     // try to pop inactive ThreadInfo stack
-    unsigned int threadID = 0;
+    unsigned int tempThreadID = 0;
     ThreadInfo *targetThreadInfo = pop_nonblocking_stack(
         inactiveThreadInfoStack,
         threadInfoGetNext
     );
     if(targetThreadInfo == NULL){
-        threadID = __atomic_fetch_add(&threadInfoArrayUsage, 1, __ATOMIC_RELAXED);
-        if(__glibc_unlikely((int)threadID >= threadMax)){
+        tempThreadID = __atomic_fetch_add(&threadInfoArrayUsage, 1, __ATOMIC_RELAXED);
+        if(__glibc_unlikely((int)tempThreadID >= threadMax)){
             exit(EXIT_FAILURE);
         }
-        targetThreadInfo = &(threadInfoArray[threadID]);
-        targetThreadInfo->threadID = threadID;
+        targetThreadInfo = &(threadInfoArray[tempThreadID]);
+        targetThreadInfo->threadID = tempThreadID;
     }
     localThreadInfo = targetThreadInfo;
-
+    threadID = localThreadInfo->threadID;
     // use pthread_key to register thread destroyer
     pthread_key_create(&inactiveKey, setThreadInfoInactive);
     // set some meaningless value to make key effective
@@ -95,7 +96,7 @@ void *wrapped_task(void *task){
     Task* task_content = task;
     void *(*routine)(void *) = task_content->routine;
     void *arg = task_content->arg;
-    hxfree(task);
+    free(task);
     return routine(arg);
 }
 
@@ -120,5 +121,5 @@ static void setThreadInfoInactive(void *arg){
         inactiveThreadInfoStack,
         threadInfoSetNext
     );
-    localThreadInfo = NULL;
+    // localThreadInfo = NULL;
 }

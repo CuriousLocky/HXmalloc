@@ -12,6 +12,7 @@ void *chunkRequest(size_t chunkSize){
     if(result == MAP_FAILED){
         return NULL;
     }
+    madvise(result, chunkSize, MADV_SEQUENTIAL);
     return result;
 }
 

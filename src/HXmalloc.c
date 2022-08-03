@@ -35,15 +35,15 @@ void hxfree(void *ptr){
     if(ptr == NULL){return;}
     BlockHeader *block = getBlockHeader(ptr);
     BlockHeader header = *block;
-    uint64_t size = hxmallocUsableSize(ptr);
-    if(size <= MAX_SMALL_BLOCK_SIZE){
+    unsigned int type = getType(header);
+    if(type < SMALL_BLOCK_CATEGORIES){
         // small block
-        freeSmallBlock(block, header);
-    }else if(size >= MAX_MID_BLOCK_SIZE){
+        freeSmallBlock(block, header, type);
+    }else if(type >= SMALL_BLOCK_CATEGORIES + MID_BLOCK_CATEGORIES){
         // big block
     }else{
         // mid block
-        freeMidBlock(block-1, header);
+        freeMidBlock(block-1, header, type - SMALL_BLOCK_CATEGORIES);
     }
 }
 
@@ -82,7 +82,7 @@ void *realloc(void *ptr, size_t size) __attribute((weak, alias("hxrealloc")));
 __attribute__((visibility("default")))
 void *hxrealloc(void *ptr, size_t size){
     if(size < 0){
-        hxfree(ptr);
+        free(ptr);
     }
     size_t usableSize = hxmallocUsableSize(ptr);
     if(usableSize >= size){
@@ -90,6 +90,6 @@ void *hxrealloc(void *ptr, size_t size){
     }
     void *newBlock = hxmalloc(size);
     memcpy(newBlock, ptr, size);
-    hxfree(ptr);
+    free(ptr);
     return newBlock;
 }

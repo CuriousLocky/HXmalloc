@@ -21,11 +21,11 @@ static int initSmallChunk(int type){
     localThreadInfo->smallBlockInfo.activeSuperBlocks[type] = newChunk + (4096/8) - 1;
     localThreadInfo->smallBlockInfo.managerPageUsages[type] = 1;
     // set ThreadID to chunk
-    newChunk[511-8] = localThreadInfo->threadID;
+    newChunk[511-8] = threadID;
     return 0;
 }
 
-static void _freeSmallBlock(BlockHeader *block, BlockHeader header, int type){
+void freeSmallBlock(BlockHeader *block, BlockHeader header, int type){
     uint64_t *superBlockBitmap = getSuperBlockBitmap(header);
     int index = getIndex(header);
     uint64_t mask = 1UL << index;
@@ -34,17 +34,25 @@ static void _freeSmallBlock(BlockHeader *block, BlockHeader header, int type){
     if( (index == 63 && freeBlockCount >= SUPERBLOCK_CLEANING_TARGET) ||
         (index != 63 && bitmapContent&(1UL<<63) && freeBlockCount == SUPERBLOCK_CLEANING_TARGET) ){
         // should exit cleaning stage
-        unsigned int threadID = getThreadID(superBlockBitmap);
-        push_nonblocking_stack(
-            ((uint64_t*)block) + 1,
-            (threadInfoArray[threadID].smallBlockInfo.cleanSuperBlockStacks[type]),
-            superBlockSetNext
-        );
+        unsigned int blockThreadID = getThreadID(superBlockBitmap);
+        if(blockThreadID == threadID){
+            push_nonblocking_stack(
+                ((uint64_t*)block) + 1,
+                (localThreadInfo->smallBlockInfo.cleanSuperBlockStacks[type]),
+                superBlockSetNext
+            );
+        }else{
+            push_nonblocking_stack(
+                ((uint64_t*)block) + 1,
+                (threadInfoArray[blockThreadID].smallBlockInfo.cleanSuperBlockStacks[type]),
+                superBlockSetNext
+            );
+        }
     }
 }
 
 static BlockHeader *findLocalVictim(int type){
-    if(__glibc_unlikely(localThreadInfo->smallBlockInfo.activeSuperBlocks[type] == NULL)){
+    if(localThreadInfo->smallBlockInfo.activeSuperBlocks[type] == NULL){
         // initialize
         int initResult = getNewSuperBlock(type);
         if(__glibc_unlikely(initResult < 0)){
@@ -110,11 +118,6 @@ static int getNewSuperBlock(int type){
 static unsigned int getThreadID(uint64_t *superBlockBitmap){
     uint64_t *bitmapPage = (uint64_t*)(((uint64_t)superBlockBitmap) & (~4095UL));
     return bitmapPage[511-8];
-}
-
-void freeSmallBlock(BlockHeader *block, BlockHeader header){
-    int type = getType(header);
-    _freeSmallBlock(block, header, type);
 }
 
 BlockHeader *findSmallVictim(uint64_t size){

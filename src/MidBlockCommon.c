@@ -50,7 +50,7 @@ static int initMidBlock(int midType){
     return 0;
 }
 
-static void _freeMidBlock(BlockHeader *block, BlockHeader header, int midType){
+void freeMidBlock(BlockHeader *block, BlockHeader header, int midType){
     uint64_t *superBlockBitmap = getSuperBlockBitmap(header);
     int index = getIndex(header);
     uint64_t mask = 1UL << index;
@@ -59,20 +59,28 @@ static void _freeMidBlock(BlockHeader *block, BlockHeader header, int midType){
     if( (index == 63 && freeBlockCount >= SUPERBLOCK_CLEANING_TARGET) ||
         (index != 63 && bitmapContent&(1UL<<63) && freeBlockCount == SUPERBLOCK_CLEANING_TARGET) ){
         // should exit cleaning stage
-        unsigned int threadID = getThreadID(block, index, midType);
-        push_nonblocking_stack(
-            ((uint64_t*)block) + 2,
-            (threadInfoArray[threadID].midBlockInfo.cleanSuperBlockStacks[midType]),
-            superBlockSetNext
-        );
+        unsigned int blockThreadID = getThreadID(block, index, midType);
+        if(blockThreadID == threadID){
+            push_nonblocking_stack(
+                ((uint64_t*)block) + 2,
+                (localThreadInfo->midBlockInfo.cleanSuperBlockStacks[midType]),
+                superBlockSetNext
+            );
+        }else{
+            push_nonblocking_stack(
+                ((uint64_t*)block) + 2,
+                (threadInfoArray[blockThreadID].midBlockInfo.cleanSuperBlockStacks[midType]),
+                superBlockSetNext
+            );
+        }
     }
 }
 
 static BlockHeader *findLocalVictim(int midType){
-    if(__glibc_unlikely(localThreadInfo->midBlockInfo.activeSuperBlocks[midType] == NULL)){
+    if(localThreadInfo->midBlockInfo.activeSuperBlocks[midType] == NULL){
         // initialize
         int initResult = getNewSuperBlock(midType);
-        if(__glibc_unlikely(initResult < 0)){
+        if(initResult < 0){
             // init failed
             return NULL;
         }
@@ -125,11 +133,6 @@ static unsigned int getThreadID(BlockHeader *block, int index, int midType){
     // Thread ID stored in first block header padding
     uint64_t *firstBlock = (uint64_t*)block - index * 4096 * (midType+1) / sizeof(uint64_t);
     return *(firstBlock);
-}
-
-void freeMidBlock(BlockHeader *block, BlockHeader header){
-    int midType = getType(header) - SMALL_BLOCK_CATEGORIES;
-    _freeMidBlock(block, header, midType);
 }
 
 BlockHeader *findMidVictim(uint64_t size){
