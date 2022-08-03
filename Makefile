@@ -1,6 +1,6 @@
 CXX = gcc
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-CFLAGS = -fPIC -fvisibility=hidden -std=gnu17 -mcx16 -ftls-model=initial-exec -march=native -nostdlib -Wall
+CFLAGS = -fPIC -fvisibility=hidden -std=gnu17 -mcx16 -ftls-model=initial-exec -march=native -nostdlib -Wall -flto -O3
 CFLAGS += -I $(ROOT_DIR)/include -I $(ROOT_DIR)/generated/include
 
 OBJ_DIR = obj
@@ -25,6 +25,9 @@ $(GEN_OBJ_DIR):
 # HXmalloc.so: $(OBJ) $(GEN_OBJ)
 HXmalloc.so: $(OBJ)
 	@$(CXX) $(CFLAGS) -DRUNTIME -shared $(OBJ) $(GEN_OBJ) -o $@ -lpthread -ldl
+
+HXmalloc.a: $(OBJ)
+	ar rcs $@ $(OBJ)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@$(CXX) $(CFLAGS) -c $< -o $@
