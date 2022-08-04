@@ -16,33 +16,20 @@ static int initMidBlock(int midType){
     if(__glibc_unlikely(newChunk == NULL)){
         return -1;
     }
-    if(localThreadInfo->midBlockInfo.bitmapPageUsage >= 4096/8 || localThreadInfo->midBlockInfo.bitmapPage == NULL){
-        // bitmap page full, get a new bitmap page
-        if(localThreadInfo->midBlockInfo.bitmapChunkUsage >= BITMAP_CHUNK_SIZE || localThreadInfo->midBlockInfo.bitmapChunk == NULL){
-            // bitmap chunk full, get a new bitmap chunk
-            uint64_t *newBitmapChunk = chunkRequest(BITMAP_CHUNK_SIZE);
-            if(newBitmapChunk == NULL){
-                return -1;
-            }
-            localThreadInfo->midBlockInfo.bitmapChunk = newBitmapChunk;
-            localThreadInfo->midBlockInfo.bitmapChunkUsage = 0;
+    if(localThreadInfo->midBlockInfo.bitmapChunkUsage >= BITMAP_CHUNK_SIZE/8 || localThreadInfo->midBlockInfo.bitmapChunk == NULL){
+        // bitmap chunk full, get a new bitmap chunk
+        uint64_t *newBitmapChunk = chunkRequest(BITMAP_CHUNK_SIZE);
+        if(newBitmapChunk == NULL){
+            return -1;
         }
-        localThreadInfo->midBlockInfo.bitmapPage = 
-            localThreadInfo->midBlockInfo.bitmapChunk +
-            localThreadInfo->midBlockInfo.bitmapChunkUsage/sizeof(uint64_t);
-        localThreadInfo->midBlockInfo.bitmapChunkUsage += 4096;
-        localThreadInfo->midBlockInfo.bitmapPageUsage = 0;
+        localThreadInfo->midBlockInfo.bitmapChunk = newBitmapChunk;
+        localThreadInfo->midBlockInfo.bitmapChunkUsage = 0;        
     }
-
-    // interleave bitmap page layout
     localThreadInfo->midBlockInfo.activeSuperBlocks[midType] = newChunk;
     localThreadInfo->midBlockInfo.activeSuperBlockBitMaps[midType] = 
-        localThreadInfo->midBlockInfo.bitmapPage + 
-        // localThreadInfo->midBlockInfo.bitmapPageUsage / 64 + 
-        // localThreadInfo->midBlockInfo.bitmapPageUsage % 64 * 8;
-        localThreadInfo->midBlockInfo.bitmapPageUsage;
-    localThreadInfo->midBlockInfo.bitmapPageUsage += 1;
-
+        localThreadInfo->midBlockInfo.bitmapChunk +
+        localThreadInfo->midBlockInfo.bitmapChunkUsage;
+    localThreadInfo->midBlockInfo.bitmapChunkUsage += 1;
     // init Bitmap
     *(localThreadInfo->midBlockInfo.activeSuperBlockBitMaps[midType]) = BITMAP_INIT;
 

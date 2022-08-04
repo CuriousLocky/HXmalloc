@@ -12,8 +12,8 @@ typedef struct{
     uint64_t *activeSuperBlockBitMaps[MID_BLOCK_CATEGORIES];
     uint64_t *bitmapChunk;
     uint64_t bitmapChunkUsage;
-    uint64_t *bitmapPage;
-    unsigned int bitmapPageUsage;
+    // uint64_t *bitmapPage;
+    // unsigned int bitmapPageUsage;
 }MidBlockThreadInfo;
 
 BlockHeader *findMidVictim(uint64_t size);

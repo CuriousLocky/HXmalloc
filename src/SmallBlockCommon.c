@@ -14,14 +14,14 @@ static int initSmallChunk(int type){
     if(__glibc_unlikely(newChunk == NULL)){
         return -1;
     }
-    *newChunk = BITMAP_INIT;
+    *(newChunk + 1) = BITMAP_INIT;
     localThreadInfo->smallBlockInfo.chunks[type] = newChunk;
     localThreadInfo->smallBlockInfo.chunkUsages[type] = 4096 - 8 + smallSuperBlockSizes[type];
-    localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type] = newChunk;
+    localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type] = newChunk + 1;
     localThreadInfo->smallBlockInfo.activeSuperBlocks[type] = newChunk + (4096/8) - 1;
-    localThreadInfo->smallBlockInfo.managerPageUsages[type] = 1;
+    localThreadInfo->smallBlockInfo.managerPageUsages[type] = 2;
     // set ThreadID to chunk
-    newChunk[511-8] = threadID;
+    newChunk[0] = threadID;
     return 0;
 }
 
@@ -117,7 +117,7 @@ static int getNewSuperBlock(int type){
 
 static unsigned int getThreadID(uint64_t *superBlockBitmap){
     uint64_t *bitmapPage = (uint64_t*)(((uint64_t)superBlockBitmap) & (~4095UL));
-    return bitmapPage[511-8];
+    return bitmapPage[0];
 }
 
 BlockHeader *findSmallVictim(uint64_t size){
