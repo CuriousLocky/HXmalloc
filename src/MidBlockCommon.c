@@ -8,7 +8,7 @@
 
 #define BITMAP_INIT 0x7fffffffffffffffUL
 
-static unsigned int getThreadID(BlockHeader *block, int index, int midType);
+static NonBlockingStackBlock *getReadyStack(BlockHeader *block, int index, int midType);
 static int getNewSuperBlock(int midType);
 
 static int initMidBlock(int midType){
@@ -33,8 +33,8 @@ static int initMidBlock(int midType){
     // init Bitmap
     *(localMidBlockInfo->activeSuperBlockBitMaps[midType]) = BITMAP_INIT;
 
-    // set ThreadID to chunk
-    *newChunk = threadID;
+    // set ready stack to chunk
+    *newChunk = (uint64_t)&(localMidBlockInfo->cleanSuperBlockStacks[midType]);
     return 0;
 }
 
@@ -47,20 +47,12 @@ void freeMidBlock(BlockHeader *block, BlockHeader header, int midType){
     if( (index == 63 && freeBlockCount >= SUPERBLOCK_CLEANING_TARGET) ||
         (index != 63 && bitmapContent&(1UL<<63) && freeBlockCount == SUPERBLOCK_CLEANING_TARGET) ){
         // should exit cleaning stage
-        unsigned int blockThreadID = getThreadID(block, index, midType);
-        if(blockThreadID == threadID){
-            push_nonblocking_stack(
-                ((uint64_t*)block) + 2,
-                (localMidBlockInfo->cleanSuperBlockStacks[midType]),
-                superBlockSetNext
-            );
-        }else{
-            push_nonblocking_stack(
-                ((uint64_t*)block) + 2,
-                (threadInfoArray[blockThreadID].midBlockInfo.cleanSuperBlockStacks[midType]),
-                superBlockSetNext
-            );
-        }
+        NonBlockingStackBlock *stackAddr = getReadyStack(block, index, midType);
+        push_nonblocking_stack(
+            ((uint64_t*)block) + 2,
+            (*stackAddr),
+            superBlockSetNext
+        );
     }
 }
 
@@ -117,10 +109,10 @@ static int getNewSuperBlock(int midType){
     return initMidBlock(midType);
 }
 
-static unsigned int getThreadID(BlockHeader *block, int index, int midType){
+static NonBlockingStackBlock *getReadyStack(BlockHeader *block, int index, int midType){
     // Thread ID stored in first block header padding
     uint64_t *firstBlock = (uint64_t*)block - index * 4096 * (midType+1) / sizeof(uint64_t);
-    return *(firstBlock);
+    return (NonBlockingStackBlock*)(*(firstBlock));
 }
 
 BlockHeader *findMidVictim(uint64_t size){

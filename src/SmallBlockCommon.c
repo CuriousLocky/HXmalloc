@@ -6,7 +6,7 @@
 
 #define BITMAP_INIT 0x7fffffffffffffffUL
 
-static unsigned int getThreadID(uint64_t *superBlockBitmap);
+static NonBlockingStackBlock *getReadyStack(uint64_t *superBlockBitmap);
 static int getNewSuperBlock(int type);
 
 static int initSmallChunk(int type){
@@ -20,8 +20,8 @@ static int initSmallChunk(int type){
     localSmallBlockInfo->activeSuperBlockBitMaps[type] = newChunk + 1;
     localSmallBlockInfo->activeSuperBlocks[type] = newChunk + (4096/8) - 1;
     localSmallBlockInfo->managerPageUsages[type] = 2;
-    // set ThreadID to chunk
-    newChunk[0] = threadID;
+    // set ready stack addr to chunk
+    newChunk[0] = (uint64_t)&(localSmallBlockInfo->cleanSuperBlockStacks[type]);
     return 0;
 }
 
@@ -34,20 +34,12 @@ void freeSmallBlock(BlockHeader *block, BlockHeader header, int type){
     if( (index == 63 && freeBlockCount >= SUPERBLOCK_CLEANING_TARGET) ||
         (index != 63 && bitmapContent&(1UL<<63) && freeBlockCount == SUPERBLOCK_CLEANING_TARGET) ){
         // should exit cleaning stage
-        unsigned int blockThreadID = getThreadID(superBlockBitmap);
-        if(blockThreadID == threadID){
-            push_nonblocking_stack(
-                ((uint64_t*)block) + 1,
-                (localSmallBlockInfo->cleanSuperBlockStacks[type]),
-                superBlockSetNext
-            );
-        }else{
-            push_nonblocking_stack(
-                ((uint64_t*)block) + 1,
-                (threadInfoArray[blockThreadID].smallBlockInfo.cleanSuperBlockStacks[type]),
-                superBlockSetNext
-            );
-        }
+        NonBlockingStackBlock *stackAddr = getReadyStack(superBlockBitmap);
+        push_nonblocking_stack(
+            ((uint64_t*)block) + 1,
+            (*stackAddr),
+            superBlockSetNext
+        );
     }
 }
 
@@ -115,9 +107,9 @@ static int getNewSuperBlock(int type){
     return initSmallChunk(type);
 }
 
-static unsigned int getThreadID(uint64_t *superBlockBitmap){
+static NonBlockingStackBlock *getReadyStack(uint64_t *superBlockBitmap){
     uint64_t *bitmapPage = (uint64_t*)(((uint64_t)superBlockBitmap) & (~4095UL));
-    return bitmapPage[0];
+    return (NonBlockingStackBlock*)(bitmapPage[0]);
 }
 
 BlockHeader *findSmallVictim(uint64_t size){
