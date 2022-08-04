@@ -104,7 +104,7 @@ void *wrapped_task(void *task){
     Task* task_content = task;
     void *(*routine)(void *) = task_content->routine;
     void *arg = task_content->arg;
-    free(task);
+    hxfree(task);
     return routine(arg);
 }
 

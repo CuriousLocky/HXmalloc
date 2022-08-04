@@ -82,7 +82,7 @@ void *realloc(void *ptr, size_t size) __attribute((weak, alias("hxrealloc")));
 __attribute__((visibility("default")))
 void *hxrealloc(void *ptr, size_t size){
     if(size < 0){
-        free(ptr);
+        hxfree(ptr);
     }
     size_t usableSize = hxmallocUsableSize(ptr);
     if(usableSize >= size){
@@ -90,6 +90,6 @@ void *hxrealloc(void *ptr, size_t size){
     }
     void *newBlock = hxmalloc(size);
     memcpy(newBlock, ptr, size);
-    free(ptr);
+    hxfree(ptr);
     return newBlock;
 }

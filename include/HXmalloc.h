@@ -40,6 +40,6 @@ static inline BlockHeader packHeader(int type, int index, uint64_t *superBlockBi
 }
 
 void *hxmalloc(size_t size);
-void free(void *ptr);
+void hxfree(void *ptr);
 void *hxrealloc(void *ptr, size_t newSize);
 size_t hxmallocUsableSize(void *ptr);
