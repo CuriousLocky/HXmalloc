@@ -15,11 +15,11 @@ static int initSmallChunk(int type){
         return -1;
     }
     *(newChunk + 1) = BITMAP_INIT;
-    localThreadInfo->smallBlockInfo.chunks[type] = newChunk;
-    localThreadInfo->smallBlockInfo.chunkUsages[type] = 4096 - 8 + smallSuperBlockSizes[type];
-    localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type] = newChunk + 1;
-    localThreadInfo->smallBlockInfo.activeSuperBlocks[type] = newChunk + (4096/8) - 1;
-    localThreadInfo->smallBlockInfo.managerPageUsages[type] = 2;
+    localSmallBlockInfo->chunks[type] = newChunk;
+    localSmallBlockInfo->chunkUsages[type] = 4096 - 8 + smallSuperBlockSizes[type];
+    localSmallBlockInfo->activeSuperBlockBitMaps[type] = newChunk + 1;
+    localSmallBlockInfo->activeSuperBlocks[type] = newChunk + (4096/8) - 1;
+    localSmallBlockInfo->managerPageUsages[type] = 2;
     // set ThreadID to chunk
     newChunk[0] = threadID;
     return 0;
@@ -38,7 +38,7 @@ void freeSmallBlock(BlockHeader *block, BlockHeader header, int type){
         if(blockThreadID == threadID){
             push_nonblocking_stack(
                 ((uint64_t*)block) + 1,
-                (localThreadInfo->smallBlockInfo.cleanSuperBlockStacks[type]),
+                (localSmallBlockInfo->cleanSuperBlockStacks[type]),
                 superBlockSetNext
             );
         }else{
@@ -52,7 +52,7 @@ void freeSmallBlock(BlockHeader *block, BlockHeader header, int type){
 }
 
 static BlockHeader *findLocalVictim(int type){
-    if(localThreadInfo->smallBlockInfo.activeSuperBlocks[type] == NULL){
+    if(localSmallBlockInfo->activeSuperBlocks[type] == NULL){
         // initialize
         int initResult = getNewSuperBlock(type);
         if(__glibc_unlikely(initResult < 0)){
@@ -61,15 +61,15 @@ static BlockHeader *findLocalVictim(int type){
     }
     int victimIndex = -1;
     uint64_t slotMask = 0;
-    uint64_t *superBlock = localThreadInfo->smallBlockInfo.activeSuperBlocks[type];
-    uint64_t *superBlockBitmap = localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type];
+    uint64_t *superBlock = localSmallBlockInfo->activeSuperBlocks[type];
+    uint64_t *superBlockBitmap = localSmallBlockInfo->activeSuperBlockBitMaps[type];
     uint64_t superBlockBitmapContent = *superBlockBitmap;
     if(superBlockBitmapContent == 0){
         // only MSB to be used
         slotMask = (1UL << 63);
         victimIndex = 63;
         if(__glibc_unlikely(getNewSuperBlock(type) < 0)){
-            localThreadInfo->smallBlockInfo.activeSuperBlocks[type] = NULL;
+            localSmallBlockInfo->activeSuperBlocks[type] = NULL;
         }
     }else{
         slotMask = _blsi_u64(superBlockBitmapContent);
@@ -84,7 +84,7 @@ static BlockHeader *findLocalVictim(int type){
 static int getNewSuperBlock(int type){
     // check clean stack
     uint64_t *randomCleanBlock = pop_nonblocking_stack(
-        (localThreadInfo->smallBlockInfo.cleanSuperBlockStacks[type]),
+        (localSmallBlockInfo->cleanSuperBlockStacks[type]),
         superBlockGetNext
     );
     if(randomCleanBlock != NULL){
@@ -93,22 +93,22 @@ static int getNewSuperBlock(int type){
         uint64_t *superBlockBitmap = getSuperBlockBitmap(header);
         __atomic_fetch_and(superBlockBitmap, ~(1UL<<63), __ATOMIC_RELAXED);
         uint64_t *superBlock = (uint64_t*)block - (getIndex(header)) * smallBlockSizes[type]/sizeof(uint64_t);
-        localThreadInfo->smallBlockInfo.activeSuperBlocks[type] = superBlock;
-        localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type] = superBlockBitmap;
+        localSmallBlockInfo->activeSuperBlocks[type] = superBlock;
+        localSmallBlockInfo->activeSuperBlockBitMaps[type] = superBlockBitmap;
         return 0;
     }
     // get new superBlock from chunk
-    uint64_t *chunk = localThreadInfo->smallBlockInfo.chunks[type];
-    uint64_t chunkUsage = localThreadInfo->smallBlockInfo.chunkUsages[type];
-    unsigned int managerPageUsage = localThreadInfo->smallBlockInfo.managerPageUsages[type];
+    uint64_t *chunk = localSmallBlockInfo->chunks[type];
+    uint64_t chunkUsage = localSmallBlockInfo->chunkUsages[type];
+    unsigned int managerPageUsage = localSmallBlockInfo->managerPageUsages[type];
     if(chunk != NULL && chunkUsage + smallBlockSizes[type] < smallChunkSizes[type]){
         // interleaved manager page    
-        localThreadInfo->smallBlockInfo.activeSuperBlocks[type] = chunk + chunkUsage/sizeof(uint64_t);
-        localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type] = chunk + managerPageUsage;
+        localSmallBlockInfo->activeSuperBlocks[type] = chunk + chunkUsage/sizeof(uint64_t);
+        localSmallBlockInfo->activeSuperBlockBitMaps[type] = chunk + managerPageUsage;
             // chunk + managerPageUsage / 64 + managerPageUsage % 64 * 8;
-        localThreadInfo->smallBlockInfo.chunkUsages[type] += smallSuperBlockSizes[type];
-        localThreadInfo->smallBlockInfo.managerPageUsages[type] += 1;
-        *(localThreadInfo->smallBlockInfo.activeSuperBlockBitMaps[type]) = BITMAP_INIT;
+        localSmallBlockInfo->chunkUsages[type] += smallSuperBlockSizes[type];
+        localSmallBlockInfo->managerPageUsages[type] += 1;
+        *(localSmallBlockInfo->activeSuperBlockBitMaps[type]) = BITMAP_INIT;
         return 0;
     }
     // chunk is full request a new chunk

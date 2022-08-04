@@ -17,7 +17,9 @@ static unsigned int threadInfoArrayUsage;
 static NonBlockingStackBlock inactiveThreadInfoStack = {.block_16b = 0};
 static pthread_key_t inactiveKey;
 
-__thread ThreadInfo *localThreadInfo;
+// __thread ThreadInfo *localThreadInfo;
+__thread SmallBlockThreadInfo *localSmallBlockInfo;
+__thread MidBlockThreadInfo *localMidBlockInfo;
 __thread unsigned int threadID;
 
 static void find_thread_create();
@@ -47,8 +49,10 @@ static void initThreadInfo(){
         targetThreadInfo = &(threadInfoArray[tempThreadID]);
         targetThreadInfo->threadID = tempThreadID;
     }
-    localThreadInfo = targetThreadInfo;
-    threadID = localThreadInfo->threadID;
+    // localThreadInfo = targetThreadInfo;
+    localSmallBlockInfo = &(targetThreadInfo->smallBlockInfo);
+    localMidBlockInfo = &(targetThreadInfo->midBlockInfo);
+    threadID = targetThreadInfo->threadID;
     // use pthread_key to register thread destroyer
     pthread_key_create(&inactiveKey, setThreadInfoInactive);
     // set some meaningless value to make key effective
@@ -117,7 +121,7 @@ int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 // set the current ThreadInfo inactive after exiting
 static void setThreadInfoInactive(void *arg){
     push_nonblocking_stack(
-        localThreadInfo, 
+        &(threadInfoArray[threadID]), 
         inactiveThreadInfoStack,
         threadInfoSetNext
     );
