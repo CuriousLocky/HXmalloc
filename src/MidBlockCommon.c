@@ -16,25 +16,25 @@ static int initMidBlock(int midType){
     if(__glibc_unlikely(newChunk == NULL)){
         return -1;
     }
-    if(localMidBlockInfo->bitmapChunkUsage >= BITMAP_CHUNK_SIZE/8 || localMidBlockInfo->bitmapChunk == NULL){
+    if(localBitmapChunkUsage >= BITMAP_CHUNK_SIZE/8 || localBitmapChunk == NULL){
         // bitmap chunk full, get a new bitmap chunk
         uint64_t *newBitmapChunk = chunkRequest(BITMAP_CHUNK_SIZE);
         if(newBitmapChunk == NULL){
             return -1;
         }
-        localMidBlockInfo->bitmapChunk = newBitmapChunk;
-        localMidBlockInfo->bitmapChunkUsage = 0;        
+        localBitmapChunk = newBitmapChunk;
+        localBitmapChunkUsage = 0;        
     }
-    localMidBlockInfo->activeSuperBlocks[midType] = newChunk;
-    localMidBlockInfo->activeSuperBlockBitMaps[midType] = 
-        localMidBlockInfo->bitmapChunk +
-        localMidBlockInfo->bitmapChunkUsage;
-    localMidBlockInfo->bitmapChunkUsage += 1;
+    localMidBlockInfo[midType].activeSuperBlocks = newChunk;
+    localMidBlockInfo[midType].activeSuperBlockBitMaps = 
+        localBitmapChunk +
+        localBitmapChunkUsage;
+    localBitmapChunkUsage += 1;
     // init Bitmap
-    *(localMidBlockInfo->activeSuperBlockBitMaps[midType]) = BITMAP_INIT;
+    *(localMidBlockInfo[midType].activeSuperBlockBitMaps) = BITMAP_INIT;
 
     // set ready stack to chunk
-    *newChunk = (uint64_t)&(localMidBlockInfo->cleanSuperBlockStacks[midType]);
+    *newChunk = (uint64_t)&(localMidBlockInfo[midType].cleanSuperBlockStacks);
     return 0;
 }
 
@@ -57,7 +57,7 @@ void freeMidBlock(BlockHeader *block, BlockHeader header, int midType){
 }
 
 static BlockHeader *findLocalVictim(int midType){
-    if(localMidBlockInfo->activeSuperBlocks[midType] == NULL){
+    if(localMidBlockInfo[midType].activeSuperBlocks == NULL){
         // initialize
         int initResult = getNewSuperBlock(midType);
         if(initResult < 0){
@@ -67,15 +67,15 @@ static BlockHeader *findLocalVictim(int midType){
     }
     int victimIndex = -1;
     uint64_t slotMask = 0;
-    uint64_t *superBlock = localMidBlockInfo->activeSuperBlocks[midType];
-    uint64_t *superBlockBitmap = localMidBlockInfo->activeSuperBlockBitMaps[midType];
+    uint64_t *superBlock = localMidBlockInfo[midType].activeSuperBlocks;
+    uint64_t *superBlockBitmap = localMidBlockInfo[midType].activeSuperBlockBitMaps;
     uint64_t superBlockBitmapContent = *superBlockBitmap;
     if(superBlockBitmapContent == 0){
         // only MSB to be used
         slotMask = (1UL << 63);
         victimIndex = 63;
         if(__glibc_unlikely(getNewSuperBlock(midType) < 0)){
-            localMidBlockInfo->activeSuperBlocks[midType] = NULL;
+            localMidBlockInfo[midType].activeSuperBlocks = NULL;
         }
     }else{
         slotMask = _blsi_u64(superBlockBitmapContent);
@@ -91,7 +91,7 @@ static BlockHeader *findLocalVictim(int midType){
 static int getNewSuperBlock(int midType){
     // check clean stack
     uint64_t *randomCleanBlock = pop_nonblocking_stack(
-        (localMidBlockInfo->cleanSuperBlockStacks[midType]),
+        (localMidBlockInfo[midType].cleanSuperBlockStacks),
         superBlockGetNext
     );
     if(randomCleanBlock != NULL){
@@ -101,8 +101,8 @@ static int getNewSuperBlock(int midType){
         uint64_t *superBlockBitmap = getSuperBlockBitmap(header);
         __atomic_fetch_and(superBlockBitmap, ~(1UL<<63), __ATOMIC_RELAXED);
         uint64_t *superBlock = (uint64_t*)block - (getIndex(header)) * 4096 * (midType+1)/sizeof(uint64_t);
-        localMidBlockInfo->activeSuperBlocks[midType] = superBlock;
-        localMidBlockInfo->activeSuperBlockBitMaps[midType] = superBlockBitmap;
+        localMidBlockInfo[midType].activeSuperBlocks = superBlock;
+        localMidBlockInfo[midType].activeSuperBlockBitMaps = superBlockBitmap;
         return 0;
     }
     // chunk is full request a new chunk
