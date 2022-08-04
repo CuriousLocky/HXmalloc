@@ -18,9 +18,11 @@ static NonBlockingStackBlock inactiveThreadInfoStack = {.block_16b = 0};
 static pthread_key_t inactiveKey;
 
 // __thread ThreadInfo *localThreadInfo;
+__thread unsigned int threadID;
 __thread SmallBlockThreadInfo *localSmallBlockInfo;
 __thread MidBlockThreadInfo *localMidBlockInfo;
-__thread unsigned int threadID;
+__thread uint64_t *localBitmapChunk;
+__thread uint64_t localBitmapChunkUsage;
 
 static void find_thread_create();
 static void setThreadInfoInactive(void *arg);
@@ -50,9 +52,11 @@ static void initThreadInfo(){
         targetThreadInfo->threadID = tempThreadID;
     }
     // localThreadInfo = targetThreadInfo;
-    localSmallBlockInfo = &(targetThreadInfo->smallBlockInfo);
-    localMidBlockInfo = &(targetThreadInfo->midBlockInfo);
+    localSmallBlockInfo = targetThreadInfo->smallBlockInfo;
+    localMidBlockInfo = targetThreadInfo->midBlockInfo;
     threadID = targetThreadInfo->threadID;
+    localBitmapChunk = targetThreadInfo->bitmapChunk;
+    localBitmapChunkUsage = targetThreadInfo->bitmapChunkUsage;
     // use pthread_key to register thread destroyer
     pthread_key_create(&inactiveKey, setThreadInfoInactive);
     // set some meaningless value to make key effective
