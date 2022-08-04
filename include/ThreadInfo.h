@@ -14,7 +14,9 @@ typedef struct _ThreadInfo{
 
 extern ThreadInfo *threadInfoArray;
 
-extern __thread ThreadInfo *localThreadInfo;
+// extern __thread ThreadInfo *localThreadInfo;
+extern __thread SmallBlockThreadInfo *localSmallBlockInfo;
+extern __thread MidBlockThreadInfo *localMidBlockInfo;
 extern __thread unsigned int threadID;
 
 void initThreadInfoArray();
