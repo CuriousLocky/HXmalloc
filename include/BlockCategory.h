@@ -12,5 +12,5 @@ extern int smallChunkSizes[];
 
 int getMidType(uint64_t size);
 
-#define MID_BLOCK_CATEGORIES    128
-#define MAX_MID_BLOCK_SIZE      (128 * 4096)
+#define MID_BLOCK_CATEGORIES    95
+#define MAX_MID_BLOCK_SIZE      (MID_BLOCK_CATEGORIES * 4096)

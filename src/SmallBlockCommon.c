@@ -114,5 +114,6 @@ static NonBlockingStackBlock *getReadyStack(uint64_t *superBlockBitmap){
 
 BlockHeader *findSmallVictim(uint64_t size){
     int type = getSmallType(size);
+    __builtin_prefetch(&(localSmallBlockInfo[type]));
     return findLocalVictim(type);
 }

@@ -11,6 +11,7 @@ typedef struct{
     uint64_t *chunks;
     uint64_t chunkUsages;
     unsigned int managerPageUsages;
+    uint64_t padding;
 }SmallBlockThreadInfo;
 
 BlockHeader *findSmallVictim(uint64_t size);
