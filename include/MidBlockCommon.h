@@ -13,4 +13,4 @@ typedef struct{
 }MidBlockThreadInfo;
 
 BlockHeader *findMidVictim(uint64_t size);
-void freeMidBlock(BlockHeader *block, BlockHeader header, int midType);
+void freeMidBlock(BlockHeader *block, int midType, int index, uint64_t *superBlockBitmap);

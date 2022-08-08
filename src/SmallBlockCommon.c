@@ -25,9 +25,7 @@ static int initSmallChunk(int type){
     return 0;
 }
 
-void freeSmallBlock(BlockHeader *block, BlockHeader header, int type){
-    uint64_t *superBlockBitmap = getSuperBlockBitmap(header);
-    int index = getIndex(header);
+void freeSmallBlock(BlockHeader *block, int type, int index, uint64_t *superBlockBitmap){
     uint64_t mask = 1UL << index;
     uint64_t bitmapContent = __atomic_or_fetch(superBlockBitmap, mask, __ATOMIC_RELAXED);
     int freeBlockCount = _popcnt64(bitmapContent);
@@ -83,8 +81,9 @@ static int getNewSuperBlock(int type){
         BlockHeader *block = randomCleanBlock - 1;
         BlockHeader header = *block;
         uint64_t *superBlockBitmap = getSuperBlockBitmap(header);
+        int index = getIndex(header);
         __atomic_fetch_and(superBlockBitmap, ~(1UL<<63), __ATOMIC_RELAXED);
-        uint64_t *superBlock = (uint64_t*)block - (getIndex(header)) * smallBlockSizes[type]/sizeof(uint64_t);
+        uint64_t *superBlock = (uint64_t*)block - index * smallBlockSizes[type]/sizeof(uint64_t);
         localSmallBlockInfo[type].activeSuperBlocks = superBlock;
         localSmallBlockInfo[type].activeSuperBlockBitMaps = superBlockBitmap;
         return 0;

@@ -1,4 +1,5 @@
 #include <string.h>
+#include <x86intrin.h>
 #include "HXmalloc.h"
 #include "SmallBlockCommon.h"
 #include "MidBlockCommon.h"
@@ -35,15 +36,18 @@ void hxfree(void *ptr){
     if(ptr == NULL){return;}
     BlockHeader *block = getBlockHeader(ptr);
     BlockHeader header = *block;
-    unsigned int type = getType(header);
+    uint64_t *superBlockBitmap = (uint64_t*)_bextr_u64(header, 0, 48);
+    int index = _bextr_u64(header, 48, 6);
+    int type = _bextr_u64(header, 48 + 6, 10);
+    // unsigned int type = getType(header);
     if(type < SMALL_BLOCK_CATEGORIES){
         // small block
-        freeSmallBlock(block, header, type);
+        freeSmallBlock(block, type, index, superBlockBitmap);
     }else if(type >= SMALL_BLOCK_CATEGORIES + MID_BLOCK_CATEGORIES){
         // big block
     }else{
         // mid block
-        freeMidBlock(block-1, header, type - SMALL_BLOCK_CATEGORIES);
+        freeMidBlock(block-1, type - SMALL_BLOCK_CATEGORIES, index, superBlockBitmap);
     }
 }
 

@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <x86intrin.h>
 
 typedef uint64_t BlockHeader;
 
@@ -15,15 +16,15 @@ static inline BlockHeader *getBlockHeader(void *ptr){
 }
 
 static inline int getType(uint64_t header){
-    return (int)((header & TYPEMASK) >> (48 + 6));
+    return _bextr_u64(header, 48+6, 0);
 }
 
 static inline uint64_t *getSuperBlockBitmap(uint64_t header){
-    return (uint64_t*)(header & SUPERBLOCKADDRMASK);
+    return (uint64_t*)_bextr_u64(header, 0, 48);
 }
 
 static inline int getIndex(uint64_t header){
-    return (header & INDEXMASK) >> 48;
+    return _bextr_u64(header, 48, 6);
 }
 
 /*Align "size" to "alignment", alignment should be 2^n.*/

@@ -38,9 +38,7 @@ static int initMidBlock(int midType){
     return 0;
 }
 
-void freeMidBlock(BlockHeader *block, BlockHeader header, int midType){
-    uint64_t *superBlockBitmap = getSuperBlockBitmap(header);
-    int index = getIndex(header);
+void freeMidBlock(BlockHeader *block, int midType, int index, uint64_t *superBlockBitmap){
     uint64_t mask = 1UL << index;
     uint64_t bitmapContent = __atomic_or_fetch(superBlockBitmap, mask, __ATOMIC_RELAXED);
     int freeBlockCount = _popcnt64(bitmapContent);
@@ -99,8 +97,9 @@ static int getNewSuperBlock(int midType){
         BlockHeader *block = randomCleanBlock - 2;
         BlockHeader header = *(block + 1);
         uint64_t *superBlockBitmap = getSuperBlockBitmap(header);
+        int index = getIndex(header);
         __atomic_fetch_and(superBlockBitmap, ~(1UL<<63), __ATOMIC_RELAXED);
-        uint64_t *superBlock = (uint64_t*)block - (getIndex(header)) * 4096 * (midType+1)/sizeof(uint64_t);
+        uint64_t *superBlock = (uint64_t*)block - index * 4096 * (midType+1)/sizeof(uint64_t);
         localMidBlockInfo[midType].activeSuperBlocks = superBlock;
         localMidBlockInfo[midType].activeSuperBlockBitMaps = superBlockBitmap;
         return 0;

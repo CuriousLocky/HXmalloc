@@ -15,4 +15,4 @@ typedef struct{
 }SmallBlockThreadInfo;
 
 BlockHeader *findSmallVictim(uint64_t size);
-void freeSmallBlock(BlockHeader *block, BlockHeader header, int type);
+void freeSmallBlock(BlockHeader *block, int type, int index, uint64_t *superBlockBitmap);
