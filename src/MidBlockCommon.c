@@ -40,7 +40,7 @@ static int initMidBlock(int midType){
 
 void freeMidBlock(BlockHeader *block, int midType, int index, uint64_t *superBlockBitmap){
     uint64_t mask = 1UL << index;
-    uint64_t bitmapContent = __atomic_or_fetch(superBlockBitmap, mask, __ATOMIC_RELAXED);
+    uint64_t bitmapContent = __atomic_add_fetch(superBlockBitmap, mask, __ATOMIC_RELAXED);
     int freeBlockCount = _popcnt64(bitmapContent);
     if( (index == 63 && freeBlockCount >= SUPERBLOCK_CLEANING_TARGET) ||
         (index != 63 && bitmapContent&(1UL<<63) && freeBlockCount == SUPERBLOCK_CLEANING_TARGET) ){
