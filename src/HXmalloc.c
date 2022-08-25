@@ -2,8 +2,9 @@
 #include <x86intrin.h>
 #include "HXmalloc.h"
 #include "SmallBlockCommon.h"
-#include "MidBlockCommon.h"
+// #include "MidBlockCommon.h"
 #include "BlockCategory.h"
+#include "NoisyDebug.h"
 
 __attribute__((visibility("default")))
 void *malloc(size_t size) __attribute((weak, alias("hxmalloc")));
@@ -11,21 +12,23 @@ void *malloc(size_t size) __attribute((weak, alias("hxmalloc")));
 __attribute__((visibility("default")))
 void *hxmalloc(size_t size){
     if(size == 0){return NULL;}
-    if(size + 8 <= MAX_SMALL_BLOCK_SIZE){
+    if(size <= MAX_SMALL_BLOCK_SIZE){
         // small block
         // align to 16
-        size += 8;
+        // size += 8;
         size = align(size, 16);
-        return findSmallVictim(size) + 1;
+        return findSmallVictim(size);
     }
-    size += 16;
+    // size += 16;
     if(size >= MAX_MID_BLOCK_SIZE){
         // big block
         // TODO: implement big block handler functions
         return NULL;
     }
     size = align(size, 4096);
-    return findMidVictim(size) + 2;
+    // return findMidVictim(size) + 2;
+    d("going to return NULL\n");
+    return NULL;
 }
 
 __attribute__((visibility("default")))
@@ -34,12 +37,19 @@ void free(void *ptr) __attribute((weak, alias("hxfree")));
 __attribute__((visibility("default")))
 void hxfree(void *ptr){
     if(ptr == NULL){return;}
-    BlockHeader *block = getBlockHeader(ptr);
-    BlockHeader header = *block;
-    uint64_t *superBlockBitmap = (uint64_t*)_bextr_u64(header, 0, 48);
-    int index = _bextr_u64(header, 48, 6);
-    int type = _bextr_u64(header, 48 + 6, 10);
+    // BlockHeader *block = getBlockHeader(ptr);
+    // BlockHeader header = *block;
+    // uint64_t *superBlockBitmap = (uint64_t*)_bextr_u64(header, 0, 48);
+    // int index = _bextr_u64(header, 48, 6);
+    // int type = _bextr_u64(header, 48 + 6, 10);
     // unsigned int type = getType(header);
+    uint64_t *block = (uint64_t*)ptr;
+    uint64_t footer = getFooter(block);
+    uint64_t size = footer & ((1UL << 48) - 1);
+    int type = footer >> 48;
+    SmallBlockInfo blockInfo = getBlockInfo(block, size);
+    uint64_t *superBlockBitmap = blockInfo.bitmap;
+    int index = blockInfo.index;
     if(type < SMALL_BLOCK_CATEGORIES){
         // small block
         freeSmallBlock(block, type, index, superBlockBitmap);
@@ -47,27 +57,27 @@ void hxfree(void *ptr){
         // big block
     }else{
         // mid block
-        freeMidBlock(block-1, type - SMALL_BLOCK_CATEGORIES, index, superBlockBitmap);
+        // freeMidBlock(block-1, type - SMALL_BLOCK_CATEGORIES, index, superBlockBitmap);
     }
 }
 
-__attribute__((visibility("default")))
-size_t malloc_usable_size(void *__ptr) __attribute((weak, alias("hxmallocUsableSize")));
+// __attribute__((visibility("default")))
+// size_t malloc_usable_size(void *__ptr) __attribute((weak, alias("hxmallocUsableSize")));
 
-__attribute__((visibility("default")))
-size_t hxmallocUsableSize(void *ptr){
-    BlockHeader *block = getBlockHeader(ptr);
-    BlockHeader header = *block;
-    int type = getType(header);
-    if(type < SMALL_BLOCK_CATEGORIES){
-        return smallBlockSizes[type];
-    }
-    type -= SMALL_BLOCK_CATEGORIES;
-    if(type < MID_BLOCK_CATEGORIES){
-        return (type + 1) * 4096;
-    }
-    return 0;
-}
+// __attribute__((visibility("default")))
+// size_t hxmallocUsableSize(void *ptr){
+//     BlockHeader *block = getBlockHeader(ptr);
+//     BlockHeader header = *block;
+//     int type = getType(header);
+//     if(type < SMALL_BLOCK_CATEGORIES){
+//         return smallBlockSizes[type];
+//     }
+//     type -= SMALL_BLOCK_CATEGORIES;
+//     if(type < MID_BLOCK_CATEGORIES){
+//         return (type + 1) * 4096;
+//     }
+//     return 0;
+// }
 
 __attribute__((visibility("default")))
 void *calloc(size_t nmemb, size_t size) __attribute((weak, alias("hxcalloc")));
@@ -80,20 +90,20 @@ void *hxcalloc(size_t nmemb, size_t size){
     return result;
 }
 
-__attribute__((visibility("default")))
-void *realloc(void *ptr, size_t size) __attribute((weak, alias("hxrealloc")));
+// __attribute__((visibility("default")))
+// void *realloc(void *ptr, size_t size) __attribute((weak, alias("hxrealloc")));
 
-__attribute__((visibility("default")))
-void *hxrealloc(void *ptr, size_t size){
-    if(size < 0){
-        hxfree(ptr);
-    }
-    size_t usableSize = hxmallocUsableSize(ptr);
-    if(usableSize >= size){
-        return ptr;
-    }
-    void *newBlock = hxmalloc(size);
-    memcpy(newBlock, ptr, size);
-    hxfree(ptr);
-    return newBlock;
-}
+// __attribute__((visibility("default")))
+// void *hxrealloc(void *ptr, size_t size){
+//     if(size < 0){
+//         hxfree(ptr);
+//     }
+//     size_t usableSize = hxmallocUsableSize(ptr);
+//     if(usableSize >= size){
+//         return ptr;
+//     }
+//     void *newBlock = hxmalloc(size);
+//     memcpy(newBlock, ptr, size);
+//     hxfree(ptr);
+//     return newBlock;
+// }

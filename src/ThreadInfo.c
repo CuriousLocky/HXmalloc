@@ -66,6 +66,17 @@ static void initThreadInfo(){
 // Initiate ThreadInfo Array, thread_create overriding and init ThreadInfo for current thread
 __attribute__ ((constructor))
 void initThreadInfoArray(){
+    {
+        int size = 16;
+        for(int i = 0; i < SMALL_BLOCK_CATEGORIES; i++){
+            smallBlockSizes[i] = size;
+            if(i % 2 == 0){
+                size += size/2;
+            }else{
+                size += size/3;
+            }
+        }
+    }
     char buffer[128] = {0};
     int threadsMaxFile = open("/proc/sys/kernel/threads-max", O_RDONLY);
     threadMax = 0;
@@ -76,7 +87,7 @@ void initThreadInfoArray(){
         }
         close(threadsMaxFile);
     }
-    threadInfoArray = chunkRequest(sizeof(ThreadInfo) * threadMax);
+    threadInfoArray = chunkRequestUnaligned(sizeof(ThreadInfo) * threadMax);
     initThreadInfo();
     find_thread_create();
 }
