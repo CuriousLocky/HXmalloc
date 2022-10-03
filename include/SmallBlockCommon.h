@@ -1,8 +1,14 @@
 #pragma once
 #include "HXmalloc.h"
 #include "NonblockingStack.h"
-#include "SuperBlock.h"
 #include "BlockCategory.h"
+
+#define SUPERBLOCK_CLEANING_FLAG    1UL
+#define SUPERBLOCK_CLEANING_TARGET  32
+
+#define superBlockGetNext(prevSuperBlock) (uint64_t*)(*(uint64_t*)prevSuperBlock)
+
+#define superBlockSetNext(prevSuperBlock, nextSuperBlock) *(prevSuperBlock)=(uint64_t)nextSuperBlock;
 
 typedef struct{
     NonBlockingStackBlock cleanSuperBlockStack;

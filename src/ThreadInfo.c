@@ -27,13 +27,9 @@ __thread uint64_t localBitmapChunkUsage;
 static void find_thread_create();
 static void setThreadInfoInactive(void *arg);
 
-static inline ThreadInfo *threadInfoGetNext(ThreadInfo *prevThreadInfo){
-    return prevThreadInfo->next;
-}
+#define threadInfoGetNext(prevThreadInfo) ((ThreadInfo*)prevThreadInfo)->next
 
-static inline void threadInfoSetNext(ThreadInfo *prevThreadInfo, ThreadInfo *nextThreadInfo){
-    prevThreadInfo->next = nextThreadInfo;
-}
+#define threadInfoSetNext(prevThreadInfo, nextThreadInfo) ((ThreadInfo*)prevThreadInfo)->next=nextThreadInfo
 
 // Initiate ThreadInfo for this thread
 static void initThreadInfo(){

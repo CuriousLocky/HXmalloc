@@ -1,7 +1,6 @@
 #pragma once
 #include "HXmalloc.h"
 #include "NonblockingStack.h"
-#include "SuperBlock.h"
 #include "BlockCategory.h"
 
 #define BITMAP_CHUNK_SIZE       16 * 1024 * 1024
