@@ -27,7 +27,7 @@ static inline uint64_t getTag(uint64_t *block){
 
 static inline SmallBlockInfo getBlockInfo(uint64_t *block, uint64_t size){
     uint64_t *chunkStart = (uint64_t*)((uint64_t)block & ~(CHUNK_SIZE-1));
-    uint32_t inChunkAddr = (((uint32_t)block) & (CHUNK_SIZE - 1)) - 64;
+    uint32_t inChunkAddr = (((uint32_t)((uint64_t)block)) & (CHUNK_SIZE - 1)) - 64;
     uint32_t inChunkIndex = inChunkAddr / size;
     uint64_t *bitmap = chunkStart + (5UL - inChunkIndex/64) % (CHUNK_SIZE/sizeof(uint64_t));
     uint32_t index = inChunkIndex % 64;
