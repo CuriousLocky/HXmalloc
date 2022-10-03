@@ -10,7 +10,6 @@ static NonBlockingStackBlock *getReadyStack(uint64_t *superBlockBitmap);
 static int getNewSuperBlock(int type);
 
 static int initSmallChunk(int type){
-    // uint64_t *newChunk = chunkRequest(smallChunkSizes[type]);
     uint64_t *newChunk = chunkRequest();
     if(__glibc_unlikely(newChunk == NULL)){
         return -1;
@@ -69,7 +68,6 @@ static BlockHeader *findLocalVictim(int type){
         __atomic_fetch_and(superBlockBitmap, (~slotMask), __ATOMIC_RELAXED);
     }
     BlockHeader *result = superBlock + (smallBlockSizes[type]/sizeof(uint64_t)) * victimIndex;
-    // *result = packHeader(type, victimIndex, superBlockBitmap);
     return result;
 }
 
@@ -97,8 +95,7 @@ static int getNewSuperBlock(int type){
     uint64_t *chunk = localSmallBlockInfo[type].chunk;
     uint64_t bitmapUsage = localSmallBlockInfo[type].bitmapUsage;
     uint64_t superBlockUsage = localSmallBlockInfo[type].superBlockUsage;
-    // uint64_t chunkUsage = localSmallBlockInfo[type].chunkUsage;
-    // unsigned int managerPageUsage = localSmallBlockInfo[type].managerPageUsages;
+
     if(chunk != NULL && (superBlockUsage + bitmapUsage * sizeof(uint64_t) <= CHUNK_SIZE)){
         // get new superBlock from chunk
         localSmallBlockInfo[type].activeSuperBlock = (uint64_t*)((uintptr_t)chunk + 64 + superBlockUsage - superBlockSize);

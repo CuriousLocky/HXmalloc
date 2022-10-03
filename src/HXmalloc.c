@@ -15,19 +15,15 @@ void *hxmalloc(size_t size){
     if(size <= MAX_SMALL_BLOCK_SIZE){
         // small block
         // align to 16
-        // size += 8;
         size = align(size, 16);
         return findSmallVictim(size);
     }
-    // size += 16;
     if(size >= MAX_MID_BLOCK_SIZE){
         // big block
         // TODO: implement big block handler functions
         return NULL;
     }
     size = align(size, 4096);
-    // return findMidVictim(size) + 2;
-    d("going to return NULL\n");
     return NULL;
 }
 
@@ -37,12 +33,6 @@ void free(void *ptr) __attribute((weak, alias("hxfree")));
 __attribute__((visibility("default")))
 void hxfree(void *ptr){
     if(ptr == NULL){return;}
-    // BlockHeader *block = getBlockHeader(ptr);
-    // BlockHeader header = *block;
-    // uint64_t *superBlockBitmap = (uint64_t*)_bextr_u64(header, 0, 48);
-    // int index = _bextr_u64(header, 48, 6);
-    // int type = _bextr_u64(header, 48 + 6, 10);
-    // unsigned int type = getType(header);
     uint64_t *block = (uint64_t*)ptr;
     uint64_t tag = getTag(block);
     uint64_t size = tag & ((1UL << 48) - 1);

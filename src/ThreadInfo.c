@@ -140,5 +140,4 @@ static void setThreadInfoInactive(void *arg){
         inactiveThreadInfoStack,
         threadInfoSetNext
     );
-    // localThreadInfo = NULL;
 }
