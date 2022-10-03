@@ -18,9 +18,11 @@ static int initSmallChunk(int type){
     localSmallBlockInfo[type].chunk = newChunk;
     localSmallBlockInfo[type].superBlockUsage = smallBlockSizes[type] * 64 * 2;
     localSmallBlockInfo[type].activeSuperBlock = newChunk + 8;
-    newChunk[5] = BITMAP_INIT;
-    localSmallBlockInfo[type].activeSuperBlockBitmap = newChunk + 5;
-    localSmallBlockInfo[type].bitmapUsage = 4;
+    uint64_t *chunkEnd = getChunkEnd(newChunk);
+    chunkEnd[-1] = BITMAP_INIT;
+    // localSmallBlockInfo[type].activeSuperBlockBitmap = newChunk + 5;
+    localSmallBlockInfo[type].activeSuperBlockBitmap = chunkEnd - 1;
+    localSmallBlockInfo[type].bitmapUsage = 2;
     return 0;
 }
 
@@ -83,8 +85,9 @@ static int getNewSuperBlock(int type){
         __atomic_fetch_and(superBlockBitmap, ~(1UL<<63), __ATOMIC_RELAXED);
 
         uint64_t *chunk = (uint64_t*)(((uint64_t)superBlockBitmap) & ~(CHUNK_SIZE - 1));
-        uint64_t bitmapInChunkOffset = ((uint64_t)superBlockBitmap) & (CHUNK_SIZE - 1);
-        int64_t bitmapIndex = (5 - (bitmapInChunkOffset / sizeof(uint64_t))) % (CHUNK_SIZE / sizeof(uint64_t));
+        // uint64_t bitmapInChunkOffset = ((uint64_t)superBlockBitmap) & (CHUNK_SIZE - 1);
+        // int64_t bitmapIndex = (5 - (bitmapInChunkOffset / sizeof(uint64_t))) % (CHUNK_SIZE / sizeof(uint64_t));
+        uint64_t bitmapIndex = getChunkEnd(chunk) - superBlockBitmap;
         uint64_t *superBlock = (uint64_t*)(((uint64_t)chunk) + 64 + bitmapIndex * superBlockSize);
 
         localSmallBlockInfo[type].activeSuperBlock = superBlock;
@@ -96,10 +99,11 @@ static int getNewSuperBlock(int type){
     uint64_t bitmapUsage = localSmallBlockInfo[type].bitmapUsage;
     uint64_t superBlockUsage = localSmallBlockInfo[type].superBlockUsage;
 
-    if(chunk != NULL && (superBlockUsage + bitmapUsage * sizeof(uint64_t) <= CHUNK_SIZE)){
+    if(chunk != NULL && (superBlockUsage + bitmapUsage * sizeof(uint64_t) <= CHUNK_SIZE - 64)){
         // get new superBlock from chunk
         localSmallBlockInfo[type].activeSuperBlock = (uint64_t*)((uintptr_t)chunk + 64 + superBlockUsage - superBlockSize);
-        uint64_t *newBitmap = chunk + (8UL - bitmapUsage) % (CHUNK_SIZE/sizeof(uint64_t));
+        // uint64_t *newBitmap = chunk + (8UL - bitmapUsage) % (CHUNK_SIZE/sizeof(uint64_t));
+        uint64_t *newBitmap = getChunkEnd(chunk) - bitmapUsage;
         *newBitmap = BITMAP_INIT;
         localSmallBlockInfo[type].activeSuperBlockBitmap = newBitmap;
         localSmallBlockInfo[type].bitmapUsage ++;
