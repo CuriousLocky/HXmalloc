@@ -19,17 +19,17 @@ typedef struct{
     uint32_t index;
 }SmallBlockInfo;
 
-static inline uint64_t getFooter(uint64_t *block){
-    uint64_t *chunkEnd = getChunkEnd((uint64_t*)((uint64_t)block & ~(CHUNK_SIZE-1)));
-    uint64_t footer = chunkEnd[-1];
-    return footer;
+static inline uint64_t getTag(uint64_t *block){
+    uint64_t *chunkStart = (uint64_t*)((uint64_t)block & ~(CHUNK_SIZE-1));
+    uint64_t tag = chunkStart[7];
+    return tag;
 }
 
 static inline SmallBlockInfo getBlockInfo(uint64_t *block, uint64_t size){
-    uint64_t *chunkEnd = getChunkEnd((uint64_t*)((uint64_t)block & ~(CHUNK_SIZE-1)));
-    uint32_t inChunkAddr = (uintptr_t)block & (CHUNK_SIZE - 1);
+    uint64_t *chunkStart = (uint64_t*)((uint64_t)block & ~(CHUNK_SIZE-1));
+    uint32_t inChunkAddr = (((uint32_t)block) & (CHUNK_SIZE - 1)) - 64;
     uint32_t inChunkIndex = inChunkAddr / size;
-    uint64_t *bitmap = chunkEnd - 3 - (inChunkIndex / 64);
+    uint64_t *bitmap = chunkStart + (5UL - inChunkIndex/64) % (CHUNK_SIZE/sizeof(uint64_t));
     uint32_t index = inChunkIndex % 64;
     SmallBlockInfo result = {.bitmap = bitmap, .index = index};
     return result;

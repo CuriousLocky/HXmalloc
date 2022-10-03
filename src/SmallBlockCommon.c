@@ -15,13 +15,12 @@ static int initSmallChunk(int type){
     if(__glibc_unlikely(newChunk == NULL)){
         return -1;
     }
-    uint64_t *chunkEnd = getChunkEnd(newChunk);
-    packChunkFooter(chunkEnd, smallBlockSizes[type], type, &(localSmallBlockInfo[type].cleanSuperBlockStack));
+    packChunkTag(newChunk, smallBlockSizes[type], type, &(localSmallBlockInfo[type].cleanSuperBlockStack));
     localSmallBlockInfo[type].chunk = newChunk;
-    localSmallBlockInfo[type].superBlockUsage = smallBlockSizes[type] * 64;
-    localSmallBlockInfo[type].activeSuperBlock = newChunk;
-    chunkEnd[-3] = BITMAP_INIT;
-    localSmallBlockInfo[type].activeSuperBlockBitmap = chunkEnd - 3;
+    localSmallBlockInfo[type].superBlockUsage = smallBlockSizes[type] * 64 * 2;
+    localSmallBlockInfo[type].activeSuperBlock = newChunk + 8;
+    newChunk[5] = BITMAP_INIT;
+    localSmallBlockInfo[type].activeSuperBlockBitmap = newChunk + 5;
     localSmallBlockInfo[type].bitmapUsage = 4;
     return 0;
 }
@@ -85,9 +84,10 @@ static int getNewSuperBlock(int type){
         uint64_t *superBlockBitmap = (uint64_t*)randomCleanBlock[1];
         __atomic_fetch_and(superBlockBitmap, ~(1UL<<63), __ATOMIC_RELAXED);
 
-        uint64_t inChunkAddr = ((uint64_t)randomCleanBlock) & (CHUNK_SIZE - 1);
-        uint64_t chunkAddr = ((uint64_t)randomCleanBlock) & ~(CHUNK_SIZE - 1);
-        uint64_t *superBlock = (uint64_t*)(chunkAddr + inChunkAddr / superBlockSize * superBlockSize);
+        uint64_t *chunk = (uint64_t*)(((uint64_t)superBlockBitmap) & ~(CHUNK_SIZE - 1));
+        uint64_t bitmapInChunkOffset = ((uint64_t)superBlockBitmap) & (CHUNK_SIZE - 1);
+        int64_t bitmapIndex = (5 - (bitmapInChunkOffset / sizeof(uint64_t))) % (CHUNK_SIZE / sizeof(uint64_t));
+        uint64_t *superBlock = (uint64_t*)(((uint64_t)chunk) + 64 + bitmapIndex * superBlockSize);
 
         localSmallBlockInfo[type].activeSuperBlock = superBlock;
         localSmallBlockInfo[type].activeSuperBlockBitmap = superBlockBitmap;
@@ -99,10 +99,10 @@ static int getNewSuperBlock(int type){
     uint64_t superBlockUsage = localSmallBlockInfo[type].superBlockUsage;
     // uint64_t chunkUsage = localSmallBlockInfo[type].chunkUsage;
     // unsigned int managerPageUsage = localSmallBlockInfo[type].managerPageUsages;
-    if(chunk != NULL && (superBlockUsage + superBlockSize + bitmapUsage * sizeof(uint64_t) <= CHUNK_SIZE)){
+    if(chunk != NULL && (superBlockUsage + bitmapUsage * sizeof(uint64_t) <= CHUNK_SIZE)){
         // get new superBlock from chunk
-        localSmallBlockInfo[type].activeSuperBlock = (uint64_t*)((uintptr_t)chunk + superBlockUsage);
-        uint64_t *newBitmap = chunk + CHUNK_SIZE/sizeof(uint64_t) - bitmapUsage;
+        localSmallBlockInfo[type].activeSuperBlock = (uint64_t*)((uintptr_t)chunk + 64 + superBlockUsage - superBlockSize);
+        uint64_t *newBitmap = chunk + (8UL - bitmapUsage) % (CHUNK_SIZE/sizeof(uint64_t));
         *newBitmap = BITMAP_INIT;
         localSmallBlockInfo[type].activeSuperBlockBitmap = newBitmap;
         localSmallBlockInfo[type].bitmapUsage ++;
@@ -114,8 +114,8 @@ static int getNewSuperBlock(int type){
 }
 
 static NonBlockingStackBlock *getReadyStack(uint64_t *superBlockBitmap){
-    uint64_t *chunkEnd = (uint64_t*)((((uint64_t)superBlockBitmap) & ~(CHUNK_SIZE - 1)) + CHUNK_SIZE);
-    return (NonBlockingStackBlock*)(chunkEnd[-2]);
+    uint64_t *chunkStart = (uint64_t*)(((uint64_t)superBlockBitmap) & ~(CHUNK_SIZE - 1));
+    return (NonBlockingStackBlock*)(chunkStart[6]);
 }
 
 BlockHeader *findSmallVictim(uint64_t size){

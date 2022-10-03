@@ -44,9 +44,9 @@ void hxfree(void *ptr){
     // int type = _bextr_u64(header, 48 + 6, 10);
     // unsigned int type = getType(header);
     uint64_t *block = (uint64_t*)ptr;
-    uint64_t footer = getFooter(block);
-    uint64_t size = footer & ((1UL << 48) - 1);
-    int type = footer >> 48;
+    uint64_t tag = getTag(block);
+    uint64_t size = tag & ((1UL << 48) - 1);
+    int type = tag >> 48;
     SmallBlockInfo blockInfo = getBlockInfo(block, size);
     uint64_t *superBlockBitmap = blockInfo.bitmap;
     int index = blockInfo.index;
