@@ -87,7 +87,7 @@ static int getNewSuperBlock(int type){
         uint64_t *chunk = (uint64_t*)(((uint64_t)superBlockBitmap) & ~(CHUNK_SIZE - 1));
         // uint64_t bitmapInChunkOffset = ((uint64_t)superBlockBitmap) & (CHUNK_SIZE - 1);
         // int64_t bitmapIndex = (5 - (bitmapInChunkOffset / sizeof(uint64_t))) % (CHUNK_SIZE / sizeof(uint64_t));
-        uint64_t bitmapIndex = getChunkEnd(chunk) - superBlockBitmap;
+        uint64_t bitmapIndex = getChunkEnd(chunk) - superBlockBitmap - 1;
         uint64_t *superBlock = (uint64_t*)(((uint64_t)chunk) + 64 + bitmapIndex * superBlockSize);
 
         localSmallBlockInfo[type].activeSuperBlock = superBlock;

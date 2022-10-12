@@ -36,7 +36,7 @@ static inline SmallBlockInfo getBlockInfo(uint64_t *block, uint64_t size){
     uint32_t inChunkAddr = (((uint32_t)((uint64_t)block)) & (CHUNK_SIZE - 1)) - 64;
     uint32_t inChunkIndex = inChunkAddr / size;
     // uint64_t *bitmap = chunkStart + (5UL - inChunkIndex/64) % (CHUNK_SIZE/sizeof(uint64_t));
-    uint64_t *bitmap = getChunkEnd(chunkStart) - 1 - inChunkIndex;
+    uint64_t *bitmap = getChunkEnd(chunkStart) - 1 - inChunkIndex/64;
     uint32_t index = inChunkIndex % 64;
     SmallBlockInfo result = {.bitmap = bitmap, .index = index};
     return result;
