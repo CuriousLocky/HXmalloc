@@ -116,7 +116,7 @@ static int getNewSuperBlock(int type){
 
 static NonBlockingStackBlock *getReadyStack(uint64_t *superBlockBitmap){
     uint64_t *chunkStart = (uint64_t*)(((uint64_t)superBlockBitmap) & ~(CHUNK_SIZE - 1));
-    return (NonBlockingStackBlock*)(chunkStart[6]);
+    return (NonBlockingStackBlock*)(chunkStart[1]);
 }
 
 BlockHeader *findSmallVictim(uint64_t size){

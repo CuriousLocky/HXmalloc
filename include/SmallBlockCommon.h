@@ -27,7 +27,7 @@ typedef struct{
 
 static inline uint64_t getTag(uint64_t *block){
     uint64_t *chunkStart = (uint64_t*)((uint64_t)block & ~(CHUNK_SIZE-1));
-    uint64_t tag = chunkStart[7];
+    uint64_t tag = chunkStart[0];
     return tag;
 }
 

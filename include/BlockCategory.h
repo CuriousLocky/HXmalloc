@@ -20,6 +20,6 @@ int getMidType(uint64_t size);
 // chunk tag is located at chunkStart + 64 - 16
 static inline void packChunkTag(uint64_t *chunkStart, size_t size, int category, NonBlockingStackBlock *readyStackAddr){
     uint64_t footer = size | ((uint64_t)category << 48);
-    chunkStart[7] = footer;
-    chunkStart[6] = (uint64_t)readyStackAddr;
+    chunkStart[0] = footer;
+    chunkStart[1] = (uint64_t)readyStackAddr;
 }
