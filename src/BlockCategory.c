@@ -1,5 +1,6 @@
 #include "BlockCategory.h"
 #include <x86intrin.h>
+#include "HXmalloc.h" // for align
 
 int smallBlockSizes[SMALL_BLOCK_CATEGORIES];
 // int smallBlockSizes[SMALL_BLOCK_CATEGORIES] = {
@@ -10,11 +11,15 @@ int smallBlockSizes[SMALL_BLOCK_CATEGORIES];
 // };
 
 int getSmallType(uint64_t size){
-    int secondBitIndex = 64 - _lzcnt_u64(size) - 2;
-    int base = (secondBitIndex - 3) * 2;
-    int offset1 = (size & (1UL << secondBitIndex))!=0;
-    int offset2 = _bzhi_u64(size, secondBitIndex)!=0;
-    return base + offset1 + offset2;
+    int bitSize = 63 - _lzcnt_u64(size);
+    uint64_t highestBit = 1 << bitSize;
+    uint64_t alignment = highestBit >> 2;
+    alignment = alignment < 16 ? 16: alignment;
+    size = align(size, alignment) >> 4;
+    int tailBits = bitSize - 6;
+    tailBits = tailBits < 0 ? 0 : tailBits;
+    size = size >> tailBits;
+    return size + tailBits * 4 - 1;
 }
 
 int getMidType(uint64_t size){

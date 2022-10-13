@@ -63,14 +63,18 @@ static void initThreadInfo(){
 __attribute__ ((constructor))
 void initThreadInfoArray(){
     {
-        int size = 16;
+        // initialize smallBlockSizes[]
+        uint64_t step = 16;
+        uint64_t value = 0;
         for(int i = 0; i < SMALL_BLOCK_CATEGORIES; i++){
-            smallBlockSizes[i] = size;
-            if(i % 2 == 0){
-                size += size/2;
-            }else{
-                size += size/3;
+            value += step;
+            step = value / 4;
+            uint64_t bitSize = 63 - _lzcnt_u64(step);
+            step = 1 << bitSize;
+            if(step < 16){
+                step = 16;
             }
+            smallBlockSizes[i] = value;
         }
     }
     char buffer[128] = {0};
