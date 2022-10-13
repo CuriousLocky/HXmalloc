@@ -4,7 +4,9 @@
 #include "ThreadInfo.h"
 #include "NoisyDebug.h"
 
-#define BITMAP_INIT 0x7fffffffffffffffUL
+#define CACHED_BITMAP_INIT  0x7fffffffffffffffUL
+#define SHARED_BITMAP_INIT  0UL
+// #define CACHE_THRESHOLD     16
 
 static NonBlockingStackBlock *getReadyStack(uint64_t *superBlockBitmap);
 static int getNewSuperBlock(int type);
@@ -19,15 +21,23 @@ static int initSmallChunk(int type){
     localSmallBlockInfo[type].superBlockUsage = smallBlockSizes[type] * 64 * 2;
     localSmallBlockInfo[type].activeSuperBlock = newChunk + 8;
     uint64_t *chunkEnd = getChunkEnd(newChunk);
-    chunkEnd[-1] = BITMAP_INIT;
+    chunkEnd[-1] = SHARED_BITMAP_INIT;
     // localSmallBlockInfo[type].activeSuperBlockBitmap = newChunk + 5;
     localSmallBlockInfo[type].activeSuperBlockBitmap = chunkEnd - 1;
     localSmallBlockInfo[type].bitmapUsage = 2;
+    localSmallBlockInfo[type].cachedBitmapContent = CACHED_BITMAP_INIT;
     return 0;
 }
 
 void freeSmallBlock(BlockHeader *block, int type, int index, uint64_t *superBlockBitmap){
     uint64_t mask = 1UL << index;
+
+    // check if the block is local and active
+    if(superBlockBitmap == localSmallBlockInfo[type].activeSuperBlockBitmap){
+        localSmallBlockInfo[type].cachedBitmapContent += mask;
+        return;
+    }
+
     uint64_t bitmapContent = __atomic_add_fetch(superBlockBitmap, mask, __ATOMIC_RELAXED);
     int freeBlockCount = _popcnt64(bitmapContent);
     if( (index == 63 && freeBlockCount >= SUPERBLOCK_CLEANING_TARGET) ||
@@ -55,22 +65,55 @@ static BlockHeader *findLocalVictim(int type){
     uint64_t slotMask = 0;
     uint64_t *superBlock = localSmallBlockInfo[type].activeSuperBlock;
     uint64_t *superBlockBitmap = localSmallBlockInfo[type].activeSuperBlockBitmap;
-    uint64_t superBlockBitmapContent = *superBlockBitmap;
-    if(superBlockBitmapContent == 0){
-        // only MSB to be used
-        slotMask = (1UL << 63);
-        victimIndex = 63;
-        if(__glibc_unlikely(getNewSuperBlock(type) < 0)){
-            // failed to get a new super block, retry next time
-            localSmallBlockInfo[type].activeSuperBlock = NULL;
-        }
-    }else{
-        slotMask = _blsi_u64(superBlockBitmapContent);
+
+    // search cached bitmap
+    uint64_t cachedBitmap = localSmallBlockInfo[type].cachedBitmapContent;
+    if(cachedBitmap != 0){
+        slotMask = _blsi_u64(cachedBitmap);
         victimIndex = _tzcnt_u64(slotMask);
-        __atomic_fetch_and(superBlockBitmap, (~slotMask), __ATOMIC_RELAXED);
+        cachedBitmap -= slotMask;
+        localSmallBlockInfo[type].cachedBitmapContent = cachedBitmap;
+        BlockHeader *result = superBlock + (smallBlockSizes[type]/sizeof(uint64_t)) * victimIndex;
+        return result;
+    }
+
+    // cached bitmap empty, try to update from shared bitmap
+    cachedBitmap = __sync_lock_test_and_set(superBlockBitmap, SHARED_BITMAP_INIT);
+    if(cachedBitmap != 0){
+        slotMask = _blsi_u64(cachedBitmap);
+        victimIndex = _tzcnt_u64(slotMask);
+        cachedBitmap -= slotMask;
+        localSmallBlockInfo[type].cachedBitmapContent = cachedBitmap;
+        BlockHeader *result = superBlock + (smallBlockSizes[type]/sizeof(uint64_t)) * victimIndex;
+        return result;
+    }
+
+    // shared bitmap also empty, use reserved block, abandon superblock
+    slotMask = (1UL << 63);
+    victimIndex = 63;
+    if(__glibc_unlikely(getNewSuperBlock(type) < 0)){
+        // failed to get a new super block, retry next time
+        localSmallBlockInfo[type].activeSuperBlock = NULL;
     }
     BlockHeader *result = superBlock + (smallBlockSizes[type]/sizeof(uint64_t)) * victimIndex;
     return result;
+
+    // uint64_t superBlockBitmapContent = *superBlockBitmap;
+    // if(superBlockBitmapContent == 0){
+    //     // only MSB to be used
+    //     slotMask = (1UL << 63);
+    //     victimIndex = 63;
+    //     if(__glibc_unlikely(getNewSuperBlock(type) < 0)){
+    //         // failed to get a new super block, retry next time
+    //         localSmallBlockInfo[type].activeSuperBlock = NULL;
+    //     }
+    // }else{
+    //     slotMask = _blsi_u64(superBlockBitmapContent);
+    //     victimIndex = _tzcnt_u64(slotMask);
+    //     __atomic_fetch_and(superBlockBitmap, (~slotMask), __ATOMIC_RELAXED);
+    // }
+    // BlockHeader *result = superBlock + (smallBlockSizes[type]/sizeof(uint64_t)) * victimIndex;
+    // return result;
 }
 
 static int getNewSuperBlock(int type){
@@ -82,16 +125,16 @@ static int getNewSuperBlock(int type){
     );
     if(randomCleanBlock != NULL){
         uint64_t *superBlockBitmap = (uint64_t*)randomCleanBlock[1];
-        __atomic_fetch_and(superBlockBitmap, ~(1UL<<63), __ATOMIC_RELAXED);
-
+        // __atomic_fetch_and(superBlockBitmap, ~(1UL<<63), __ATOMIC_RELAXED);
+        uint64_t bitmapContent = __sync_lock_test_and_set(superBlockBitmap, SHARED_BITMAP_INIT);
+        bitmapContent &= CACHED_BITMAP_INIT;
         uint64_t *chunk = (uint64_t*)(((uint64_t)superBlockBitmap) & ~(CHUNK_SIZE - 1));
-        // uint64_t bitmapInChunkOffset = ((uint64_t)superBlockBitmap) & (CHUNK_SIZE - 1);
-        // int64_t bitmapIndex = (5 - (bitmapInChunkOffset / sizeof(uint64_t))) % (CHUNK_SIZE / sizeof(uint64_t));
         uint64_t bitmapIndex = getChunkEnd(chunk) - superBlockBitmap - 1;
         uint64_t *superBlock = (uint64_t*)(((uint64_t)chunk) + 64 + bitmapIndex * superBlockSize);
 
         localSmallBlockInfo[type].activeSuperBlock = superBlock;
         localSmallBlockInfo[type].activeSuperBlockBitmap = superBlockBitmap;
+        localSmallBlockInfo[type].cachedBitmapContent = bitmapContent;
         return 0;
     }
     
@@ -102,12 +145,12 @@ static int getNewSuperBlock(int type){
     if(chunk != NULL && (superBlockUsage + bitmapUsage * sizeof(uint64_t) <= CHUNK_SIZE - 64)){
         // get new superBlock from chunk
         localSmallBlockInfo[type].activeSuperBlock = (uint64_t*)((uintptr_t)chunk + 64 + superBlockUsage - superBlockSize);
-        // uint64_t *newBitmap = chunk + (8UL - bitmapUsage) % (CHUNK_SIZE/sizeof(uint64_t));
         uint64_t *newBitmap = getChunkEnd(chunk) - bitmapUsage;
-        *newBitmap = BITMAP_INIT;
+        *newBitmap = SHARED_BITMAP_INIT;
         localSmallBlockInfo[type].activeSuperBlockBitmap = newBitmap;
         localSmallBlockInfo[type].bitmapUsage ++;
         localSmallBlockInfo[type].superBlockUsage += superBlockSize;
+        localSmallBlockInfo[type].cachedBitmapContent = CACHED_BITMAP_INIT;
         return 0;
     }
     // chunk is full request a new chunk

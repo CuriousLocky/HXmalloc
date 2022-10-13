@@ -14,10 +14,11 @@ typedef struct{
     NonBlockingStackBlock cleanSuperBlockStack;
     uint64_t *activeSuperBlock;
     uint64_t *activeSuperBlockBitmap;
+    uint64_t cachedBitmapContent;
     uint64_t *chunk;
     uint64_t superBlockUsage;
     uint64_t bitmapUsage;
-    uint64_t padding;
+    // uint64_t padding;
 }SmallBlockThreadInfo;
 
 typedef struct{
