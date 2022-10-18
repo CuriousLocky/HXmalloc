@@ -15,7 +15,7 @@ typedef struct{
     uint64_t *activeSuperBlock;
     uint64_t *activeSuperBlockBitmap;
     uint64_t *chunk;
-    uint64_t superBlockUsage;
+    uint64_t chunkUsage;
     uint64_t bitmapUsage;
     uint64_t padding;
 }SmallBlockThreadInfo;
@@ -31,13 +31,15 @@ static inline uint64_t getTag(uint64_t *block){
     return tag;
 }
 
-static inline SmallBlockInfo getBlockInfo(uint64_t *block, uint64_t size){
+static inline SmallBlockInfo getBlockInfo(uint64_t *block, uint32_t size){
+    uint32_t superBlockBundleSize = size * 64 + 64;
     uint64_t *chunkStart = (uint64_t*)((uint64_t)block & ~(CHUNK_SIZE-1));
     uint32_t inChunkAddr = (((uint32_t)((uint64_t)block)) & (CHUNK_SIZE - 1)) - 64;
-    uint32_t inChunkIndex = inChunkAddr / size;
+    uint32_t bundleIndex = inChunkAddr / superBlockBundleSize;
     // uint64_t *bitmap = chunkStart + (5UL - inChunkIndex/64) % (CHUNK_SIZE/sizeof(uint64_t));
-    uint64_t *bitmap = getChunkEnd(chunkStart) - 1 - inChunkIndex/64;
-    uint32_t index = inChunkIndex % 64;
+    uint64_t *bitmap = (uint64_t*)((uintptr_t)chunkStart + 64 + bundleIndex * superBlockBundleSize);
+    uint32_t inBundleAddr = inChunkAddr % superBlockBundleSize;
+    uint32_t index = (inBundleAddr - 64)/size;
     SmallBlockInfo result = {.bitmap = bitmap, .index = index};
     return result;
 }
