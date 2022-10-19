@@ -18,13 +18,10 @@ static int initSmallChunk(int type){
     }
     packChunkTag(newChunk, smallBlockSizes[type], type, &(localSmallBlockInfo[type].cleanSuperBlockStack));
     localSmallBlockInfo[type].chunk = newChunk;
-    localSmallBlockInfo[type].superBlockUsage = smallBlockSizes[type] * 64 * 2;
-    localSmallBlockInfo[type].activeSuperBlock = newChunk + 8;
-    uint64_t *chunkEnd = getChunkEnd(newChunk);
-    chunkEnd[-1] = SHARED_BITMAP_INIT;
-    // localSmallBlockInfo[type].activeSuperBlockBitmap = newChunk + 5;
-    localSmallBlockInfo[type].activeSuperBlockBitmap = chunkEnd - 1;
-    localSmallBlockInfo[type].bitmapUsage = 2;
+    localSmallBlockInfo[type].chunkUsage = smallBlockSizes[type] * 64 + 2 * 64;
+    localSmallBlockInfo[type].activeSuperBlock = newChunk + 16;
+    *(newChunk + 8) = SHARED_BITMAP_INIT;
+    localSmallBlockInfo[type].activeSuperBlockBitmap = newChunk + 8;
     localSmallBlockInfo[type].cachedBitmapContent = CACHED_BITMAP_INIT;
     return 0;
 }
@@ -125,12 +122,9 @@ static int getNewSuperBlock(int type){
     );
     if(randomCleanBlock != NULL){
         uint64_t *superBlockBitmap = (uint64_t*)randomCleanBlock[1];
-        // __atomic_fetch_and(superBlockBitmap, ~(1UL<<63), __ATOMIC_RELAXED);
         uint64_t bitmapContent = __sync_lock_test_and_set(superBlockBitmap, SHARED_BITMAP_INIT);
         bitmapContent &= CACHED_BITMAP_INIT;
-        uint64_t *chunk = (uint64_t*)(((uint64_t)superBlockBitmap) & ~(CHUNK_SIZE - 1));
-        uint64_t bitmapIndex = getChunkEnd(chunk) - superBlockBitmap - 1;
-        uint64_t *superBlock = (uint64_t*)(((uint64_t)chunk) + 64 + bitmapIndex * superBlockSize);
+        uint64_t *superBlock = superBlockBitmap + 8;
 
         localSmallBlockInfo[type].activeSuperBlock = superBlock;
         localSmallBlockInfo[type].activeSuperBlockBitmap = superBlockBitmap;
@@ -139,17 +133,16 @@ static int getNewSuperBlock(int type){
     }
     
     uint64_t *chunk = localSmallBlockInfo[type].chunk;
-    uint64_t bitmapUsage = localSmallBlockInfo[type].bitmapUsage;
-    uint64_t superBlockUsage = localSmallBlockInfo[type].superBlockUsage;
+    uint64_t chunkUsage = localSmallBlockInfo[type].chunkUsage;
 
-    if(chunk != NULL && (superBlockUsage + bitmapUsage * sizeof(uint64_t) <= CHUNK_SIZE - 64)){
+    // if(chunk != NULL && (chunkUsage + bitmapUsage * sizeof(uint64_t) <= CHUNK_SIZE - 64)){
+    if(chunk != NULL && chunkUsage + superBlockSize + 64 <= CHUNK_SIZE){
         // get new superBlock from chunk
-        localSmallBlockInfo[type].activeSuperBlock = (uint64_t*)((uintptr_t)chunk + 64 + superBlockUsage - superBlockSize);
-        uint64_t *newBitmap = getChunkEnd(chunk) - bitmapUsage;
+        uint64_t *newBitmap = (uint64_t*)(((uintptr_t)chunk) + chunkUsage);
         *newBitmap = SHARED_BITMAP_INIT;
         localSmallBlockInfo[type].activeSuperBlockBitmap = newBitmap;
-        localSmallBlockInfo[type].bitmapUsage ++;
-        localSmallBlockInfo[type].superBlockUsage += superBlockSize;
+        localSmallBlockInfo[type].activeSuperBlock = newBitmap + 8;
+        localSmallBlockInfo[type].chunkUsage += superBlockSize + 64;
         localSmallBlockInfo[type].cachedBitmapContent = CACHED_BITMAP_INIT;
         return 0;
     }
